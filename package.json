@@ -1,0 +1,13 @@
+{
+  "name": "gnosis-monitor",
+  "version": "1.0.0",
+  "description": "Gnosis Forum Monitor - Full Stack App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^9.2.2"
+  }
+}

@@ -1,0 +1,6 @@
+node_modules/
+.env
+.env.local
+*.log
+.forum-monitor-state.json
+data.json
