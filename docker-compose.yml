@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  forum-monitor:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - gemini=${gemini}
+      - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY}
+      - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - DUNE_API_KEY=${DUNE_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data

@@ -1,0 +1,38 @@
+name: forum-monitor
+region: fra
+services:
+  - name: web
+    github:
+      repo: donking/forum-monitor
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: gemini
+        scope: RUN_TIME
+        type: SECRET
+      - key: BROWSERBASE_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: BROWSERBASE_PROJECT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: ETHERSCAN_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DUNE_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: TELEGRAM_BOT_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+      - key: TELEGRAM_CHAT_ID
+        scope: RUN_TIME
+        type: SECRET
+    health_check:
+      http_path: /
+      initial_delay_seconds: 30
+      period_seconds: 60
