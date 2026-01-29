@@ -212,7 +212,7 @@ const GURUFOCUS_PASSWORD = process.env.GURUFOCUS_PASSWORD;
 
 // Liquity Position Tracker
 const LIQUITY_SAFE_ADDRESS = '0x66a7b66d7E823155660bDc6b83bEaaa11098Ea89'.toLowerCase();
-const LIQUITY_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minuty - časté kontroly
+const LIQUITY_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minuta - častější kontroly
 const LIQUITY_ALERT_THRESHOLD = 30_000_000; // 30M debt in front = problém
 const LIQUITY_DEFISAVER_URL = `https://app.defisaver.com/liquityV2/smart-wallet/wsteth/manage?trackAddress=${LIQUITY_SAFE_ADDRESS}&chainId=1`;
 
@@ -2089,26 +2089,95 @@ async function processLiquityV2Data(data) {
   return await fetchDebtInFrontFromAPI();
 }
 
+// Scrape DeFi Saver via Browserbase for live Liquity data
+async function fetchDefiSaverData() {
+  if (!BROWSERBASE_API_KEY || !BROWSERBASE_PROJECT_ID) {
+    return null;
+  }
+  
+  console.log('  🌐 Scraping DeFi Saver via Browserbase...');
+  
+  try {
+    const data = await scrapeWithBrowserbase(LIQUITY_DEFISAVER_URL, () => {
+      const allText = document.body.innerText;
+      
+      // Look for "Debt in front" pattern
+      let debtInFront = null;
+      const debtMatch = allText.match(/Debt in front[:\s]*\$?([\d.,]+)\s*(M|K)?/i) ||
+                       allText.match(/In front[:\s]*\$?([\d.,]+)\s*(M|K)?/i);
+      if (debtMatch) {
+        let val = parseFloat(debtMatch[1].replace(/,/g, ''));
+        if (debtMatch[2]?.toUpperCase() === 'M') val *= 1e6;
+        if (debtMatch[2]?.toUpperCase() === 'K') val *= 1e3;
+        debtInFront = val;
+      }
+      
+      // Look for interest rate
+      let interestRate = null;
+      const rateMatch = allText.match(/Interest[:\s]*([\d.]+)\s*%/i) || 
+                       allText.match(/Rate[:\s]*([\d.]+)\s*%/i);
+      if (rateMatch) interestRate = parseFloat(rateMatch[1]);
+      
+      // CR
+      let cr = null;
+      const crMatch = allText.match(/(?:CR|Ratio)[:\s]*([\d.]+)\s*%/i);
+      if (crMatch) cr = parseFloat(crMatch[1]);
+      
+      // Debt
+      let debt = null;
+      const debtAmountMatch = allText.match(/Debt[:\s]*\$?([\d.,]+)\s*(M|K)?/i);
+      if (debtAmountMatch) {
+        let val = parseFloat(debtAmountMatch[1].replace(/,/g, ''));
+        if (debtAmountMatch[2]?.toUpperCase() === 'M') val *= 1e6;
+        if (debtAmountMatch[2]?.toUpperCase() === 'K') val *= 1e3;
+        debt = val;
+      }
+      
+      // Collateral
+      let collateral = null;
+      const collMatch = allText.match(/Collateral[:\s]*([\d.,]+)/i);
+      if (collMatch) collateral = parseFloat(collMatch[1].replace(/,/g, ''));
+      
+      return { debtInFront, interestRate, cr, debt, collateral };
+    }, { waitFor: 'body', timeout: 45000 });
+    
+    if (data && (data.debtInFront || data.interestRate)) {
+      console.log(`  ✅ DeFi Saver: ${data.debtInFront ? (data.debtInFront/1e6).toFixed(2) + 'M' : 'N/A'} | ${data.interestRate || 'N/A'}%`);
+      
+      const state = loadState();
+      state.liquityLastKnown = { ...state.liquityLastKnown, ...data, scraped: new Date().toISOString() };
+      saveState(state);
+      
+      return {
+        address: LIQUITY_SAFE_ADDRESS,
+        debtInFront: data.debtInFront,
+        interestRate: data.interestRate,
+        collateral: data.collateral,
+        debt: data.debt,
+        cr: data.cr,
+        protocol: 'Liquity V2',
+        collateralType: 'wstETH',
+        url: LIQUITY_DEFISAVER_URL,
+        updated: new Date().toISOString(),
+        dataSource: 'defisaver-live'
+      };
+    }
+  } catch (e) {
+    console.log(`  ⚠️ DeFi Saver error: ${e.message}`);
+  }
+  return null;
+}
+
 async function fetchDebtInFrontFromAPI() {
-  // Known position data from DeFi Saver (Liquity V2 wstETH)
-  // Last scraped values - these should be updated via scraping
-  // URL: https://app.defisaver.com/liquityV2/smart-wallet/wsteth/manage?trackAddress=0x66a7b66d7e823155660bdc6b83beaaa11098ea89&chainId=1
+  // Try Browserbase scraping first
+  const liveData = await fetchDefiSaverData();
+  if (liveData) return liveData;
   
-  // Load last known values from state file
+  // Fallback to cached
   const state = loadState();
-  const lastKnown = state.liquityLastKnown || {
-    debtInFront: 33470000, // 33.47M BOLD (from DeFi Saver scrape)
-    interestRate: 5.00,    // 5% (from DeFi Saver scrape)
-    collateral: 2986.02,   // wstETH
-    debt: 3560000,         // 3.56M BOLD
-    cr: 306.54,            // Collateral ratio %
-    balance: 7360000,      // $7.36M
-    liquidationPrice: 1432.68,
-    currentPrice: 3659.79
-  };
+  const lastKnown = state.liquityLastKnown || { debtInFront: 33470000, interestRate: 5.00 };
   
-  console.log(`  📊 Debt in front: ${(lastKnown.debtInFront / 1e6).toFixed(2)}M BOLD`);
-  console.log(`  📊 Interest rate: ${lastKnown.interestRate}%`);
+  console.log(`  📦 Cached: ${(lastKnown.debtInFront / 1e6).toFixed(2)}M | ${lastKnown.interestRate}%`);
   
   return {
     address: LIQUITY_SAFE_ADDRESS,
@@ -2117,14 +2186,11 @@ async function fetchDebtInFrontFromAPI() {
     collateral: lastKnown.collateral,
     debt: lastKnown.debt,
     cr: lastKnown.cr,
-    balance: lastKnown.balance,
-    liquidationPrice: lastKnown.liquidationPrice,
-    currentPrice: lastKnown.currentPrice,
     protocol: 'Liquity V2',
     collateralType: 'wstETH',
     url: LIQUITY_DEFISAVER_URL,
     updated: new Date().toISOString(),
-    dataSource: 'cached' // Indicates this is cached data, not live
+    dataSource: 'cached'
   };
 }
 
@@ -2302,87 +2368,18 @@ async function fetchEtherscanRedemptions() {
 }
 
 function getEstimatedRedemptionAnalysis(etherscanData = null, duneData = null) {
-  // Use Dune data if available, otherwise use cached values from dashboard observation
-  // Cached values from Dune dashboard (liquity/liquity-v2):
-  // - wstETH avg interest rate: 5.00%
-  // - Last redemption at: 4.85%
-  // - ETH avg: 3.64%, last redemption: 2.90%
-  // - rETH avg: 0.90%, last redemption: 0.50%
-  
-  const userRate = 5.00; // User's current rate
-  const lastRedemptionWstETH = duneData?.lastRedemptionRate || 4.85;
-  const avgRateWstETH = duneData?.avgRateWstETH || 5.00;
-  
-  // Calculate safety margin
-  const safetyMargin = userRate - lastRedemptionWstETH;
-  const isSafe = safetyMargin > 0.1; // At least 0.1% above last redemption
-  
-  // Estimate minimum safe rate (needs to be above last redemption)
-  const minSafeRate = lastRedemptionWstETH + 0.05; // 4.90% minimum recommended
-  
-  // Calculate potential savings
-  const userDebt = 3560000; // 3.56M BOLD
-  const rateReduction = userRate - minSafeRate;
-  const annualSavings = (rateReduction / 100) * userDebt;
-  
-  // Merge with Etherscan data if available
+  // Simplified - only last redemption rate from Dune
+  const lastRedemptionRate = duneData?.lastRedemptionRate || 4.85;
   const lastRedemptionTime = etherscanData?.lastRedemptionTime || null;
   const lastRedemptionTimeAgo = etherscanData?.lastRedemptionTimeAgo || 'N/A';
   const lastRedemptionTx = etherscanData?.lastRedemptionTx || null;
   
-  // Determine data source
-  let dataSource = 'estimated';
-  if (etherscanData?.dataSource === 'etherscan' && duneData?.dataSource === 'dune') {
-    dataSource = 'etherscan+dune';
-  } else if (etherscanData?.dataSource === 'etherscan') {
-    dataSource = 'etherscan';
-  } else if (duneData?.dataSource === 'dune') {
-    dataSource = 'dune';
-  }
-  
   return {
-    // Interest rate data
-    userRate: userRate,
-    avgRateWstETH: avgRateWstETH,
-    avgRateETH: duneData?.avgRateETH || 3.64,
-    avgRateRETH: duneData?.avgRateRETH || 0.90,
-    
-    // Last redemption data
-    lastRedemptionRate: lastRedemptionWstETH,
-    lastRedemptionRateETH: 2.90,
-    lastRedemptionRateRETH: 0.50,
-    lastRedemptionTime: lastRedemptionTime,
-    lastRedemptionTimeAgo: lastRedemptionTimeAgo,
-    lastRedemptionTx: lastRedemptionTx,
-    
-    // Analysis
-    safetyMargin: safetyMargin,
-    safetyStatus: isSafe ? 'SAFE' : 'AT_RISK',
-    minSafeRate: minSafeRate,
-    
-    // Recommendations
-    recommendation: isSafe 
-      ? `Tvůj úrok ${userRate}% je bezpečný (${safetyMargin.toFixed(2)}% nad poslední redemption)`
-      : `⚠️ POZOR: Tvůj úrok ${userRate}% je příliš blízko poslední redemption (${lastRedemptionWstETH}%)`,
-    
-    potentialSavings: annualSavings,
-    
-    // Rate suggestions  
-    rateSuggestions: [
-      { rate: 5.00, risk: 'LOW', debtInFrontEstimate: '~33M', note: 'Aktuální - bezpečné' },
-      { rate: 4.90, risk: 'LOW', debtInFrontEstimate: '~30M', note: 'Minimum doporučené' },
-      { rate: 4.50, risk: 'MEDIUM', debtInFrontEstimate: '~20M', note: 'Pod poslední redemption!' },
-      { rate: 4.00, risk: 'HIGH', debtInFrontEstimate: '~10M', note: '⚠️ Riskantní' },
-    ],
-    
-    dataSource: dataSource,
-    dataNote: dataSource === 'etherscan+dune' 
-      ? 'Live data z Etherscan + Dune Analytics API'
-      : dataSource === 'etherscan'
-      ? 'Live data z Etherscan API'
-      : dataSource === 'dune'
-      ? 'Live data z Dune Analytics API'
-      : 'Cached data z Dune Analytics dashboard',
+    lastRedemptionRate,
+    lastRedemptionTime,
+    lastRedemptionTimeAgo,
+    lastRedemptionTx,
+    dataSource: duneData?.dataSource || etherscanData?.dataSource || 'cached',
     updated: new Date().toISOString()
   };
 }

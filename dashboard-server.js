@@ -644,7 +644,7 @@ app.get('/', (req, res) => {
     </details>`;
   }
 
-  // Liquity Position section
+  // Liquity Position section - simplified
   const liquity = data.liquity || {};
   let liquityHtml = '';
   if (liquity.address || liquity.debtInFront !== undefined || liquity.url) {
@@ -652,137 +652,40 @@ app.get('/', (req, res) => {
     const hasData = debtInFront !== null && debtInFront !== undefined;
     const debtInFrontM = hasData ? (debtInFront / 1e6).toFixed(2) : 'N/A';
     const isAlert = hasData && debtInFront < 30000000;
-    const isSafe = hasData && debtInFront >= 30000000;
     const alertClass = isAlert ? 'liq-alert' : '';
     const protocol = liquity.protocol || 'Liquity';
     const collType = liquity.collateralType || '';
     const defiSaverUrl = liquity.url || 'https://app.defisaver.com/liquityV2/smart-wallet/wsteth/manage?trackAddress=0x66a7b66d7e823155660bdc6b83beaaa11098ea89&chainId=1';
-    const isCached = liquity.dataSource === 'cached';
+    const isLive = liquity.dataSource === 'defisaver-live';
     
-    // Redemption analysis
+    // Redemption data from Dune
     const ra = liquity.redemptionAnalysis || {};
     const lastRedemptionRate = ra.lastRedemptionRate;
-    const userRate = ra.userRate || liquity.interestRate || 5.00;
-    const safetyMargin = userRate - (lastRedemptionRate || 4.85);
-    const isRateSafe = safetyMargin > 0.1;
-    const minSafeRate = ra.minSafeRate || 4.90;
-    
-    // Rate suggestions HTML
-    let rateSuggestionsHtml = '';
-    if (ra.rateSuggestions && ra.rateSuggestions.length > 0) {
-      rateSuggestionsHtml = `
-        <div class="liq-rates-table">
-          <div class="liq-rates-header">
-            <span>Úrok</span>
-            <span>Riziko</span>
-            <span>~Debt in Front</span>
-            <span>Poznámka</span>
-          </div>
-          ${ra.rateSuggestions.map(s => `
-            <div class="liq-rates-row ${s.rate === userRate ? 'liq-current' : ''} ${s.risk === 'HIGH' ? 'liq-risky' : ''}">
-              <span class="liq-rate-val">${s.rate.toFixed(2)}%</span>
-              <span class="liq-rate-risk liq-risk-${s.risk.toLowerCase()}">${s.risk === 'LOW' ? '✅' : s.risk === 'MEDIUM' ? '⚠️' : '🔴'} ${s.risk}</span>
-              <span>${s.debtInFrontEstimate}</span>
-              <span class="liq-rate-note">${escapeHtml(s.note)}</span>
-            </div>
-          `).join('')}
-        </div>`;
-    }
+    const userRate = liquity.interestRate || 5.00;
     
     liquityHtml = `
     <div class="liq-card ${alertClass}">
       <div class="liq-header">
         <span class="liq-icon">🏦</span>
         <span class="liq-title">${escapeHtml(protocol)} ${collType ? `(${escapeHtml(collType)})` : ''}</span>
-        ${isAlert ? '<span class="liq-warning">⚠️ ALERT &lt;30M</span>' : ''}
-        ${isSafe ? '<span class="liq-safe">✅ OK</span>' : ''}
-        ${liquity.balance ? `<span class="liq-balance">$${(liquity.balance / 1e6).toFixed(2)}M</span>` : ''}
+        ${isAlert ? '<span class="liq-warning">⚠️ &lt;30M</span>' : '<span class="liq-safe">✅</span>'}
       </div>
       <div class="liq-stats">
         <div class="liq-stat liq-main">
           <span class="liq-label">Debt in Front</span>
-          <span class="liq-value ${isAlert ? 'liq-danger' : ''}">${hasData ? debtInFrontM + 'M BOLD' : 'N/A'}</span>
-        </div>
-        <div class="liq-stat liq-interest">
-          <span class="liq-label">Tvůj Úrok</span>
-          <span class="liq-value">${userRate ? userRate.toFixed(2) + '%' : 'N/A'}</span>
+          <span class="liq-value ${isAlert ? 'liq-danger' : ''}">${hasData ? debtInFrontM + 'M' : 'N/A'}</span>
         </div>
         <div class="liq-stat">
-          <span class="liq-label">CR</span>
-          <span class="liq-value">${liquity.cr ? liquity.cr.toFixed(1) + '%' : 'N/A'}</span>
+          <span class="liq-label">Úrok</span>
+          <span class="liq-value">${userRate ? userRate.toFixed(1) + '%' : 'N/A'}</span>
         </div>
-        <div class="liq-stat">
-          <span class="liq-label">Collateral</span>
-          <span class="liq-value">${liquity.collateral ? liquity.collateral.toFixed(0) + ' wstETH' : 'N/A'}</span>
-        </div>
-        <div class="liq-stat">
-          <span class="liq-label">Debt</span>
-          <span class="liq-value">${liquity.debt ? (liquity.debt / 1e6).toFixed(2) + 'M BOLD' : 'N/A'}</span>
-        </div>
-        ${liquity.liquidationPrice ? `<div class="liq-stat"><span class="liq-label">Liq. Price</span><span class="liq-value">$${liquity.liquidationPrice.toFixed(0)}</span></div>` : ''}
+        ${liquity.cr ? `<div class="liq-stat"><span class="liq-label">CR</span><span class="liq-value">${liquity.cr.toFixed(0)}%</span></div>` : ''}
+        ${lastRedemptionRate ? `<div class="liq-stat liq-redemption"><span class="liq-label">⚡ Posl. Redemption</span><span class="liq-value">${lastRedemptionRate.toFixed(2)}%</span></div>` : ''}
+        ${ra.lastRedemptionTimeAgo ? `<div class="liq-stat"><span class="liq-label">Kdy</span><span class="liq-value">${escapeHtml(ra.lastRedemptionTimeAgo)}</span></div>` : ''}
       </div>
-      
-      ${lastRedemptionRate ? `
-      <div class="liq-redemption-section">
-        <div class="liq-redemption-header">
-          <span class="liq-redemption-icon">⚡</span>
-          <span class="liq-redemption-title">Poslední Redemption (wstETH)</span>
-          ${ra.dataSource === 'etherscan' ? '<span class="liq-live-badge">🔴 LIVE</span>' : ''}
-        </div>
-        <div class="liq-redemption-stats">
-          <div class="liq-stat">
-            <span class="liq-label">Redemption Rate</span>
-            <span class="liq-value liq-redemption-rate">${lastRedemptionRate.toFixed(2)}%</span>
-          </div>
-          <div class="liq-stat">
-            <span class="liq-label">Tvůj Buffer</span>
-            <span class="liq-value ${isRateSafe ? 'liq-safe-text' : 'liq-danger'}">${safetyMargin > 0 ? '+' : ''}${safetyMargin.toFixed(2)}%</span>
-          </div>
-          <div class="liq-stat">
-            <span class="liq-label">Min. Bezpečný Úrok</span>
-            <span class="liq-value">${minSafeRate.toFixed(2)}%</span>
-          </div>
-          ${ra.lastRedemptionTimeAgo ? `
-          <div class="liq-stat">
-            <span class="liq-label">Kdy</span>
-            <span class="liq-value">${escapeHtml(ra.lastRedemptionTimeAgo)}</span>
-          </div>` : ''}
-        </div>
-        ${ra.lastRedemptionTx ? `<div class="liq-tx-link"><a href="https://etherscan.io/tx/${escapeHtml(ra.lastRedemptionTx)}" target="_blank">📋 Zobrazit TX na Etherscan →</a></div>` : ''}
-        ${ra.recommendation ? `<div class="liq-recommendation ${isRateSafe ? 'liq-rec-safe' : 'liq-rec-warning'}">${escapeHtml(ra.recommendation)}</div>` : ''}
-      </div>` : ''}
-      
-      <details class="liq-analysis-accordion">
-        <summary class="liq-analysis-toggle">
-          <span>📊 Analýza Úrokových Sazeb</span>
-          <span class="toggle-icon">▼</span>
-        </summary>
-        <div class="liq-analysis-content">
-          <div class="liq-pool-rates">
-            <div class="liq-pool-rate">
-              <span class="liq-pool-name">wstETH</span>
-              <span class="liq-pool-avg">Avg: ${ra.avgRateWstETH ? ra.avgRateWstETH.toFixed(2) + '%' : '5.00%'}</span>
-              <span class="liq-pool-last">Last Red: ${ra.lastRedemptionRate ? ra.lastRedemptionRate.toFixed(2) + '%' : '4.85%'}</span>
-            </div>
-            <div class="liq-pool-rate">
-              <span class="liq-pool-name">ETH</span>
-              <span class="liq-pool-avg">Avg: ${ra.avgRateETH ? ra.avgRateETH.toFixed(2) + '%' : '3.64%'}</span>
-              <span class="liq-pool-last">Last Red: ${ra.lastRedemptionRateETH ? ra.lastRedemptionRateETH.toFixed(2) + '%' : '2.90%'}</span>
-            </div>
-            <div class="liq-pool-rate">
-              <span class="liq-pool-name">rETH</span>
-              <span class="liq-pool-avg">Avg: ${ra.avgRateRETH ? ra.avgRateRETH.toFixed(2) + '%' : '0.90%'}</span>
-              <span class="liq-pool-last">Last Red: ${ra.lastRedemptionRateRETH ? ra.lastRedemptionRateRETH.toFixed(2) + '%' : '0.50%'}</span>
-            </div>
-          </div>
-          ${rateSuggestionsHtml}
-          ${ra.dataNote ? `<div class="liq-data-note">${escapeHtml(ra.dataNote)}</div>` : ''}
-        </div>
-      </details>
-      
       <div class="liq-footer">
-        <span class="liq-updated">${isCached ? '📋 Cached' : '🔴 Live'} · ${timeAgo(liquity.updated)}</span>
-        <a href="${escapeHtml(defiSaverUrl)}" target="_blank" class="liq-link">Open DeFi Saver →</a>
+        <span class="liq-updated">${isLive ? '🔴 Live' : '📦'} · ${timeAgo(liquity.updated)}</span>
+        <a href="${escapeHtml(defiSaverUrl)}" target="_blank" class="liq-link">DeFi Saver →</a>
       </div>
     </div>`;
   }
