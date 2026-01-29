@@ -167,8 +167,8 @@ const DASHBOARD_URL = 'http://localhost:3000/api/push';
 const DASHBOARD_REFRESH_URL = 'http://localhost:3000/api/check-refresh';
 const API_KEY = 'gnosis-monitor-key-2026';
 const GEMINI_API_KEY = process.env.gemini;
-const GEMINI_MODEL = 'gemini-2.0-flash'; // Rychlý model pro všechny operace
-const GEMINI_PRO_MODEL = 'gemini-2.0-flash'; // Používáme stejný rychlý model
+const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - rychlý model
+const GEMINI_PRO_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash pro všechny operace
 // Load NANSEN_API_KEY from env or .mogra/.env file
 let NANSEN_API_KEY = process.env.NANSEN_API_KEY;
 if (!NANSEN_API_KEY) {
@@ -1947,7 +1947,7 @@ async function analyzeWatchlistStocks() {
   
   console.log('📈 Researching watchlist stocks...');
   console.log(`   📊 Primary source: Browserbase + Yahoo Finance (live data)`);
-  console.log(`   🤖 AI Analysis: ${GEMINI_MODEL} (rychlý model)`);
+  console.log(`   🤖 AI Analysis: ${GEMINI_MODEL} (Gemini 3 Flash)`);
   
   const stocks = [];
   
