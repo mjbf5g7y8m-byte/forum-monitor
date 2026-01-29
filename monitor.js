@@ -1639,110 +1639,95 @@ ${yfContext}
 
 DATUM: ${today}
 
-ÚKOL: Vyhledej aktuální informace o firmě a její akcii. Zajímá mě:
+ÚKOL: Vyhledej aktuální informace o firmě a její akcii. 
+
+🔴 NEJDŮLEŽITĚJŠÍ - CO SE STALO V POSLEDNÍCH 24-48 HODINÁCH:
+   - Earnings report (pokud byl)
+   - Důležité novinky a oznámení
+   - Pohyby ceny akcie a důvody
+   - Reakce analytiků
+   - Jakékoli market-moving události
 
 1. ZÁKLADNÍ INFO:
-   - Aktuální cena akcie (pokud ji najdeš)
+   - Aktuální cena akcie
    - P/E ratio, P/S ratio, Market Cap
    - 52-week high/low
-   - Dividend yield (pokud vyplácí)
 
-2. JAK SE FIRMĚ DAŘÍ:
+2. POSLEDNÍ VÝSLEDKY A GUIDANCE:
    - Poslední kvartální výsledky (revenue, EPS, YoY změny)
    - Guidance managementu
-   - Marže a jejich trend
-   - Free cash flow
+   - Beat/miss expectations
 
-3. AKTUÁLNÍ UDÁLOSTI (poslední 2 týdny):
-   - Důležité novinky o firmě
+3. AKTUÁLNÍ UDÁLOSTI (poslední týden):
+   - Earnings calls, conference calls
    - Nové produkty nebo služby
    - Partnerství, akvizice
    - Změny v managementu
    - Regulatorní záležitosti
 
-4. KONKURENČNÍ POZICE:
-   - Jak si stojí vůči konkurenci
-   - Tržní podíl
-   - Konkurenční výhody/nevýhody
-
-5. RIZIKA A PŘÍLEŽITOSTI:
-   - Hlavní rizika
-   - Růstové příležitosti
-   - Makro faktory ovlivňující firmu
-
-6. NÁZORY ANALYTIKŮ:
+4. NÁZORY ANALYTIKŮ:
    - Průměrný price target
    - Buy/Hold/Sell doporučení
-   - Poslední upgrade/downgrade
-
-7. TECHNICKÁ ANALÝZA (stručně):
-   - Trend (uptrend/downtrend/sideways)
-   - Klíčové support/resistance úrovně
+   - Poslední upgrade/downgrade (z posledních dnů)
 
 FORMÁT ODPOVĚDI (JSON):
 {
   "ticker": "${ticker}",
   "name": "název firmy",
   "sector": "sektor",
-  "price": "aktuální cena nebo N/A",
+  "price": "aktuální cena",
   "priceChange": "změna za den (%)",
   "pe": "P/E ratio",
   "ps": "P/S ratio",
   "marketCap": "tržní kapitalizace",
   "week52High": "52w high",
   "week52Low": "52w low",
-  "dividendYield": "dividend yield nebo N/A",
+  
+  "recentNews24h": [
+    {
+      "cas": "dnes|včera|2d ago",
+      "titulek": "co se stalo - konkrétní zpráva",
+      "detail": "více detailů o události",
+      "dopad": "pozitivní|negativní|neutrální",
+      "dulezitost": "high|medium|low"
+    }
+  ],
   
   "financials": {
     "lastQuarterRevenue": "tržby",
     "revenueGrowthYoY": "růst YoY %",
     "lastQuarterEPS": "EPS",
     "epsGrowthYoY": "růst EPS YoY %",
-    "grossMargin": "hrubá marže %",
-    "operatingMargin": "provozní marže %",
-    "freeCashFlow": "FCF",
-    "guidance": "guidance managementu"
+    "guidance": "guidance managementu",
+    "beatMiss": "beat/miss/inline"
   },
   
   "novinky": [
     {"datum": "YYYY-MM-DD", "titulek": "...", "dopad": "pozitivní|negativní|neutrální"}
   ],
   
-  "konkurence": {
-    "hlavniKonkurenti": ["konkurent1", "konkurent2"],
-    "pozice": "popis konkurenční pozice",
-    "vyhody": ["výhoda1"],
-    "nevyhody": ["nevýhoda1"]
+  "analytickyKonsensus": {
+    "prumernyPriceTarget": "cena",
+    "doporuceni": "Buy/Hold/Sell",
+    "pocetAnalytiku": "počet",
+    "posledniZmena": "upgrade/downgrade info z posledních dnů"
   },
   
   "rizika": ["riziko1", "riziko2"],
   "prilezitosti": ["příležitost1", "příležitost2"],
   
-  "analytickyKonsensus": {
-    "prumernyPriceTarget": "cena",
-    "doporuceni": "Buy/Hold/Sell",
-    "pocetAnalytiku": "počet",
-    "posledniZmena": "upgrade/downgrade info"
-  },
-  
-  "technicalAnalysis": {
-    "trend": "uptrend|downtrend|sideways",
-    "support": "support úroveň",
-    "resistance": "resistance úroveň",
-    "rsi": "RSI hodnota nebo N/A"
-  },
-  
   "sentiment": "bullish|bearish|neutral",
-  "sentimentDuvod": "proč tento sentiment",
+  "sentimentDuvod": "proč tento sentiment - na základě posledních událostí",
   
-  "souhrn": "3-5 vět shrnující jak se firmě daří a co je klíčové pro investora",
-  "actionItem": "konkrétní doporučení pro investora"
+  "souhrn": "3-5 vět - CO SE DĚJE PRÁVĚ TEĎ s touto akcií, hlavní události posledních dnů",
+  "actionItem": "konkrétní doporučení na základě aktuální situace"
 }
 
 DŮLEŽITÉ: 
-- Hledej AKTUÁLNÍ data, ne historická
+- Hledej AKTUÁLNÍ data z posledních 24-48 hodin
+- recentNews24h je NEJDŮLEŽITĚJŠÍ pole - vyplň ho konkrétními zprávami
 - Pokud něco nenajdeš, napiš "N/A"
-- Buď objektivní, ne přehnaně optimistický ani pesimistický`;
+- Buď objektivní a konkrétní`;
 
   try {
     // Použití Gemini 2.5 Pro s Google Search grounding

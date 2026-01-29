@@ -467,11 +467,30 @@ app.get('/', (req, res) => {
       const konkurence = s.konkurence || {};
       const gf = s.guruFocus || {};
       
-      // Novinky HTML
+      // Recent News 24h HTML (PRIMARY - most important)
+      let recentNewsHtml = '';
+      if (s.recentNews24h && s.recentNews24h.length > 0) {
+        recentNewsHtml = `<div class="wl-recent-news">
+          <div class="wl-section-title wl-urgent">🔴 Co se děje (24-48h)</div>
+          ${s.recentNews24h.slice(0, 4).map(n => {
+            const dopadClass = n.dopad === 'pozitivní' ? 'positive' : n.dopad === 'negativní' ? 'negative' : '';
+            const urgentClass = n.dulezitost === 'high' ? 'urgent' : '';
+            return `<div class="wl-recent-item ${dopadClass} ${urgentClass}">
+              <div class="wl-recent-header">
+                ${n.cas ? `<span class="wl-recent-time">${escapeHtml(n.cas)}</span>` : ''}
+                <span class="wl-recent-title">${escapeHtml(n.titulek || '')}</span>
+              </div>
+              ${n.detail ? `<div class="wl-recent-detail">${escapeHtml(n.detail)}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+      
+      // Novinky HTML (older news)
       let novinyHtml = '';
       if (s.novinky && s.novinky.length > 0) {
         novinyHtml = `<div class="wl-news-section">
-          <div class="wl-section-title">📰 Poslední novinky</div>
+          <div class="wl-section-title">📰 Další novinky</div>
           ${s.novinky.slice(0, 3).map(n => {
             const dopadClass = n.dopad === 'pozitivní' ? 'positive' : n.dopad === 'negativní' ? 'negative' : '';
             return `<div class="wl-news-item ${dopadClass}">
@@ -595,9 +614,10 @@ app.get('/', (req, res) => {
           <span class="wl-expand">▼</span>
         </summary>
         <div class="wl-stock-body">
-          ${gfHtml}
+          ${recentNewsHtml}
           ${s.souhrn ? `<div class="wl-summary">${escapeHtml(s.souhrn)}</div>` : ''}
           ${s.actionItem ? `<div class="wl-action">💡 ${escapeHtml(s.actionItem)}</div>` : ''}
+          ${gfHtml}
           ${techHtml}
           ${consensusHtml}
           ${financialsHtml}
@@ -940,6 +960,16 @@ details[open] .toggle-icon{transform:rotate(180deg)}
 .wl-fin-value.positive{color:#30d158}
 .wl-fin-value.negative{color:#ff453a}
 .wl-guidance{font-size:11px;color:var(--t2);margin-top:10px;padding:8px;background:#111;border-radius:6px;border-left:2px solid #a855f7}
+.wl-recent-news{margin-bottom:12px;background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.02));border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px}
+.wl-section-title.wl-urgent{color:#ef4444;font-weight:600}
+.wl-recent-item{padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-top:8px;border-left:3px solid #333}
+.wl-recent-item.positive{border-left-color:#30d158;background:rgba(48,209,88,0.05)}
+.wl-recent-item.negative{border-left-color:#ff453a;background:rgba(255,69,58,0.05)}
+.wl-recent-item.urgent{border-left-width:4px;box-shadow:0 0 10px rgba(239,68,68,0.2)}
+.wl-recent-header{display:flex;align-items:center;gap:8px}
+.wl-recent-time{font-size:9px;color:#ef4444;background:rgba(239,68,68,0.2);padding:2px 6px;border-radius:3px;font-weight:600}
+.wl-recent-title{font-size:12px;color:var(--t);font-weight:500}
+.wl-recent-detail{font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5}
 .wl-news-section{margin-top:12px}
 .wl-news-item{font-size:11px;color:var(--t2);padding:6px 8px;background:#0a0a0a;border-radius:4px;margin-bottom:4px;display:flex;gap:8px;align-items:flex-start}
 .wl-news-item.positive{border-left:2px solid #30d158}
