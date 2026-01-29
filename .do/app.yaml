@@ -3,7 +3,7 @@ region: fra
 services:
   - name: web
     github:
-      repo: donking/forum-monitor
+      repo: mjbf5g7y8m-byte/forum-monitor
       branch: main
       deploy_on_push: true
     dockerfile_path: Dockerfile
