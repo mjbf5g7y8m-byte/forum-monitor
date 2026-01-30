@@ -12,7 +12,8 @@ const FORUMS = {
   cow: { name: 'CoW Protocol', symbol: 'COW', icon: '🐮', color: '#012f7a', coingecko: 'cow-protocol' },
   safe: { name: 'Safe', symbol: 'SAFE', icon: '🔐', color: '#12ff80', coingecko: 'safe' },
   stakewise: { name: 'StakeWise', symbol: 'SWISE', icon: '🥩', color: '#6b5ce7', coingecko: 'stakewise' },
-  wnxm: { name: 'Nexus Mutual', symbol: 'wNXM', icon: '🛡️', color: '#1aab9b', coingecko: 'wrapped-nxm' }
+  wnxm: { name: 'Nexus Mutual', symbol: 'wNXM', icon: '🛡️', color: '#1aab9b', coingecko: 'wrapped-nxm' },
+  aave: { name: 'Aave', symbol: 'AAVE', icon: '👻', color: '#b6509e', coingecko: 'aave' }
 };
 
 app.use(express.json({ limit: '5mb' }));
@@ -309,7 +310,7 @@ app.get('/', (req, res) => {
   }
 
   // ============ SECTION: Forums ============
-  const forumUrls = { gnosis: 'https://forum.gnosis.io', cow: 'https://forum.cow.fi', safe: 'https://forum.safe.global', stakewise: 'https://forum.stakewise.io', wnxm: 'https://forum.nexusmutual.io' };
+  const forumUrls = { gnosis: 'https://forum.gnosis.io', cow: 'https://forum.cow.fi', safe: 'https://forum.safe.global', stakewise: 'https://forum.stakewise.io', wnxm: 'https://forum.nexusmutual.io', aave: 'https://governance.aave.com' };
   
   let forumsHtml = `
     <div class="section-card" data-section="forums">

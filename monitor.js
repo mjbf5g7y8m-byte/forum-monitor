@@ -245,7 +245,8 @@ const TOKEN_ADDRESSES = {
   cow: { address: '0xDEf1CA1fb7FBcDC777520aa7f396b4E015F497aB', chain: 'ethereum' },
   safe: { address: '0x5afe3855358e112b5647b952709e6165e1c1eeee', chain: 'ethereum' },
   stakewise: { address: '0x48c3399719b582dd63eb5aadf12a40b4c3f52fa2', chain: 'ethereum' },
-  wnxm: { address: '0x0d438f3b5175bebc262bf23753c1e53d03432bde', chain: 'ethereum' }
+  wnxm: { address: '0x0d438f3b5175bebc262bf23753c1e53d03432bde', chain: 'ethereum' },
+  aave: { address: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9', chain: 'ethereum' }
 };
 
 // Snapshot spaces for governance
@@ -253,7 +254,8 @@ const SNAPSHOT_SPACES = {
   gnosis: 'gnosis.eth',
   cow: 'cow.eth',
   safe: 'safe.eth',
-  stakewise: 'stakewise.eth'
+  stakewise: 'stakewise.eth',
+  aave: 'aave.eth'
   // wNXM uses on-chain governance, not Snapshot
 };
 
@@ -265,7 +267,8 @@ const FORUMS = {
   cow: { name: 'CoW Protocol', url: 'https://forum.cow.fi', apiUrl: 'https://forum.cow.fi/latest.json', token: 'cow-protocol', symbol: 'COW', icon: '🐮' },
   safe: { name: 'Safe', url: 'https://forum.safe.global', apiUrl: 'https://forum.safe.global/latest.json', token: 'safe', symbol: 'SAFE', icon: '🔐' },
   stakewise: { name: 'StakeWise', url: 'https://forum.stakewise.io', apiUrl: 'https://forum.stakewise.io/latest.json', token: 'stakewise', symbol: 'SWISE', icon: '🥩' },
-  wnxm: { name: 'Nexus Mutual', url: 'https://forum.nexusmutual.io', apiUrl: 'https://forum.nexusmutual.io/latest.json', token: 'wrapped-nxm', symbol: 'wNXM', icon: '🛡️' }
+  wnxm: { name: 'Nexus Mutual', url: 'https://forum.nexusmutual.io', apiUrl: 'https://forum.nexusmutual.io/latest.json', token: 'wrapped-nxm', symbol: 'wNXM', icon: '🛡️' },
+  aave: { name: 'Aave', url: 'https://governance.aave.com', apiUrl: 'https://governance.aave.com/latest.json', token: 'aave', symbol: 'AAVE', icon: '👻' }
 };
 
 const SENTIMENT_KEYWORDS = {
