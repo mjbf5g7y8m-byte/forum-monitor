@@ -325,12 +325,14 @@ app.get('/', (req, res) => {
   const formatChange = (c) => c != null ? `${c > 0 ? '+' : ''}${c.toFixed(2)}%` : '';
   const changeClass = (c) => c > 0 ? 'up' : c < 0 ? 'down' : '';
   
+  // Get GNO price for BTC proxy (we track crypto tokens)
+  const gnoPrice = data.prices?.data?.gnosis;
+  
   let marketOverviewHtml = `
   <div class="market-overview">
     ${mo.sp500 ? `<div class="mo-item"><span class="mo-label">S&P 500</span><span class="mo-value">${formatPrice(mo.sp500.price)}</span><span class="mo-change ${changeClass(mo.sp500.change24h)}">${formatChange(mo.sp500.change24h)}</span></div>` : ''}
     ${mo.nasdaq ? `<div class="mo-item"><span class="mo-label">NASDAQ</span><span class="mo-value">${formatPrice(mo.nasdaq.price)}</span><span class="mo-change ${changeClass(mo.nasdaq.change24h)}">${formatChange(mo.nasdaq.change24h)}</span></div>` : ''}
-    ${mo.vix ? `<div class="mo-item"><span class="mo-label">VIX</span><span class="mo-value mo-vix ${mo.vix.price > 20 ? 'high' : 'low'}">${mo.vix.price?.toFixed(2) || 'N/A'}</span></div>` : ''}
-    ${mo.btc ? `<div class="mo-item"><span class="mo-label">BTC</span><span class="mo-value">$${formatPrice(mo.btc.price)}</span><span class="mo-change ${changeClass(mo.btc.change24h)}">${formatChange(mo.btc.change24h)}</span></div>` : ''}
+    ${gnoPrice ? `<div class="mo-item"><span class="mo-label">GNO</span><span class="mo-value">$${gnoPrice.usd?.toFixed(2) || 'N/A'}</span><span class="mo-change ${changeClass(gnoPrice.usd_24h_change)}">${formatChange(gnoPrice.usd_24h_change)}</span></div>` : ''}
     <div class="mo-item mo-countdown"><span class="mo-label">⏱️ Refresh</span><span class="mo-value" id="countdown">60s</span></div>
   </div>`;
 

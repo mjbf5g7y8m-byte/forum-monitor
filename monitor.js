@@ -463,13 +463,7 @@ async function fetchPrices() {
 async function fetchMarketOverview() {
   const overview = { updated: new Date().toISOString() };
   
-  try {
-    // BTC from CoinGecko
-    const btcData = await fetchJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
-    if (btcData?.bitcoin) {
-      overview.btc = { price: btcData.bitcoin.usd, change24h: btcData.bitcoin.usd_24h_change };
-    }
-  } catch (e) {}
+  // Note: BTC will be added from main prices fetch to avoid rate limits
   
   try {
     // S&P 500 from Stooq
@@ -519,27 +513,7 @@ async function fetchMarketOverview() {
     if (nasdaq) overview.nasdaq = nasdaq;
   } catch (e) {}
   
-  try {
-    // VIX from Stooq
-    const vix = await new Promise((resolve) => {
-      https.get('https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcvn&h&e=csv', { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          const lines = data.trim().split('\n');
-          if (lines.length >= 2) {
-            const parts = lines[1].split(',');
-            if (parts.length >= 5) {
-              const close = parseFloat(parts[6]);
-              resolve({ price: close });
-            }
-          }
-          resolve(null);
-        });
-      }).on('error', () => resolve(null));
-    });
-    if (vix) overview.vix = vix;
-  } catch (e) {}
+  // VIX removed - not available through free Stooq API
   
   return overview;
 }
