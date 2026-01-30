@@ -51,7 +51,7 @@ function formatTimeLeft(endTimestamp) {
 // API: Receive data from Mogra
 app.post('/api/push', (req, res) => {
   if (req.headers['x-api-key'] !== API_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const { forums, prices, activity, summaries, nansen, snapshot, xtb, fisher, watchlist, liquity, liveFeed, lastCheck, lastSummary, lastNansen, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
+  const { forums, prices, activity, summaries, nansen, snapshot, xtb, fisher, watchlist, liquity, liveFeed, marketOverview, lastCheck, lastSummary, lastNansen, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
   const data = loadData();
   const wasRefreshRequested = data.refreshRequested || false;
   if (forums) data.forums = forums;
@@ -65,6 +65,7 @@ app.post('/api/push', (req, res) => {
   if (watchlist) data.watchlist = watchlist;
   if (liquity) data.liquity = liquity;
   if (liveFeed) data.liveFeed = liveFeed;
+  if (marketOverview) data.marketOverview = marketOverview;
   if (lastCheck) data.lastCheck = lastCheck;
   if (lastSummary) data.lastSummary = lastSummary;
   if (lastNansen) data.lastNansen = lastNansen;
@@ -317,6 +318,21 @@ app.get('/', (req, res) => {
   const summaryTime = data.lastSummary ? timeAgo(data.lastSummary) : 'N/A';
   const nansenTime = data.lastNansen ? timeAgo(data.lastNansen) : 'N/A';
   const refreshPending = data.refreshRequested ? ' (⏳ refresh pending)' : '';
+
+  // Market Overview Section
+  const mo = data.marketOverview || {};
+  const formatPrice = (p) => p ? (p > 1000 ? p.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : p.toFixed(2)) : 'N/A';
+  const formatChange = (c) => c != null ? `${c > 0 ? '+' : ''}${c.toFixed(2)}%` : '';
+  const changeClass = (c) => c > 0 ? 'up' : c < 0 ? 'down' : '';
+  
+  let marketOverviewHtml = `
+  <div class="market-overview">
+    ${mo.sp500 ? `<div class="mo-item"><span class="mo-label">S&P 500</span><span class="mo-value">${formatPrice(mo.sp500.price)}</span><span class="mo-change ${changeClass(mo.sp500.change24h)}">${formatChange(mo.sp500.change24h)}</span></div>` : ''}
+    ${mo.nasdaq ? `<div class="mo-item"><span class="mo-label">NASDAQ</span><span class="mo-value">${formatPrice(mo.nasdaq.price)}</span><span class="mo-change ${changeClass(mo.nasdaq.change24h)}">${formatChange(mo.nasdaq.change24h)}</span></div>` : ''}
+    ${mo.vix ? `<div class="mo-item"><span class="mo-label">VIX</span><span class="mo-value mo-vix ${mo.vix.price > 20 ? 'high' : 'low'}">${mo.vix.price?.toFixed(2) || 'N/A'}</span></div>` : ''}
+    ${mo.btc ? `<div class="mo-item"><span class="mo-label">BTC</span><span class="mo-value">$${formatPrice(mo.btc.price)}</span><span class="mo-change ${changeClass(mo.btc.change24h)}">${formatChange(mo.btc.change24h)}</span></div>` : ''}
+    <div class="mo-item mo-countdown"><span class="mo-label">⏱️ Refresh</span><span class="mo-value" id="countdown">60s</span></div>
+  </div>`;
 
   // XTB Morning Commentary Section
   const xtb = data.xtb || {};
@@ -602,6 +618,7 @@ app.get('/', (req, res) => {
           <div class="wl-stock-price-row">
             <span class="wl-price">${escapeHtml(s.price || 'N/A')}</span>
             ${s.priceChange ? `<span class="wl-change ${s.priceChange.includes('-') ? 'down' : 'up'}">${escapeHtml(s.priceChange)}</span>` : ''}
+            ${(() => { const pct = parseFloat(s.priceChange); return Math.abs(pct) >= 5 ? `<span class="wl-alert-badge ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '🔥' : '⚠️'}</span>` : ''; })()}
           </div>
           <div class="wl-stock-metrics">
             ${s.gfScore ? `<span class="wl-gf-badge">GF:${s.gfScore}</span>` : ''}
@@ -729,6 +746,21 @@ h1{font-size:28px;font-weight:600}
 .refresh-btn.loading{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
 .model-badge{font-size:10px;background:#1a1a1a;padding:4px 8px;border-radius:4px;color:var(--ai);border:1px solid rgba(168,85,247,0.3)}
+.market-overview{display:flex;gap:20px;align-items:center;justify-content:center;padding:12px 20px;margin-bottom:24px;background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.3);border-radius:12px;flex-wrap:wrap}
+.mo-item{display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);border-radius:8px}
+.mo-label{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase}
+.mo-value{font-size:14px;font-weight:700;color:var(--t)}
+.mo-change{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px}
+.mo-change.up{color:#30d158;background:rgba(48,209,88,0.15)}
+.mo-change.down{color:#ff453a;background:rgba(255,69,58,0.15)}
+.mo-vix.high{color:#ff453a}
+.mo-vix.low{color:#30d158}
+.mo-countdown{border:1px solid rgba(59,130,246,0.5)}
+.mo-countdown .mo-value{color:#3b82f6}
+.wl-alert-badge{font-size:14px;padding:2px 6px;border-radius:4px;animation:alert-pulse 1s infinite}
+.wl-alert-badge.up{background:rgba(48,209,88,0.2)}
+.wl-alert-badge.down{background:rgba(255,69,58,0.2)}
+@keyframes alert-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:40px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;border-top:3px solid var(--accent,#333)}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
@@ -1068,6 +1100,7 @@ details[open] .toggle-icon{transform:rotate(180deg)}
 .liq-tx-link a:hover{background:rgba(139,92,246,0.2);color:#a78bfa}
 </style></head>
 <body><div class="container">
+${marketOverviewHtml}
 <header>
   <h1>📊 Forum Monitor</h1>
   <div class="header-right">
@@ -1148,7 +1181,19 @@ function checkXtbRead() {
 }
 checkXtbRead();
 
-setTimeout(()=>location.reload(),60000);
+// Countdown timer
+let countdown = 60;
+function updateCountdown() {
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = countdown + 's';
+  if (countdown <= 0) {
+    location.reload();
+  } else {
+    countdown--;
+    setTimeout(updateCountdown, 1000);
+  }
+}
+updateCountdown();
 </script>
 </body></html>`);
 });

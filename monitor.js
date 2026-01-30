@@ -36,12 +36,26 @@ async function initBrowserbase() {
   }
 }
 
+// Session limiter - max 3 concurrent sessions to avoid 429
+let browserbaseActiveCount = 0;
+const BROWSERBASE_MAX_CONCURRENT = 3;
+
+async function waitForBrowserbaseSlot() {
+  while (browserbaseActiveCount >= BROWSERBASE_MAX_CONCURRENT) {
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  browserbaseActiveCount++;
+}
+
 async function createBrowserbaseSession() {
   if (!browserbaseClient) {
     await initBrowserbase();
   }
   
   if (!browserbaseClient) return null;
+  
+  // Wait for available slot
+  await waitForBrowserbaseSlot();
   
   try {
     // Create new session
@@ -52,6 +66,11 @@ async function createBrowserbaseSession() {
       }
     });
     
+    if (!browserbaseSession || !browserbaseSession.connectUrl) {
+      browserbaseActiveCount--;
+      return null;
+    }
+    
     // Connect browser
     browserbaseBrowser = await chromium.connectOverCDP(browserbaseSession.connectUrl);
     const context = browserbaseBrowser.contexts()[0];
@@ -60,6 +79,7 @@ async function createBrowserbaseSession() {
     console.log(`    🌐 Browserbase session: ${browserbaseSession.id}`);
     return browserbasePage;
   } catch (e) {
+    browserbaseActiveCount--;
     console.error('    ❌ Browserbase session error:', e.message);
     return null;
   }
@@ -76,6 +96,9 @@ async function closeBrowserbaseSession() {
     browserbaseBrowser = null;
     browserbaseSession = null;
   } catch (e) {}
+  finally {
+    if (browserbaseActiveCount > 0) browserbaseActiveCount--;
+  }
 }
 
 // Fetch page content using Browserbase
@@ -434,6 +457,91 @@ async function fetchPrices() {
     const ids = Object.values(FORUMS).map(f => f.token).join(',');
     return await fetchJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`);
   } catch (e) { console.error('❌ Price fetch error:', e.message); return null; }
+}
+
+// Market Overview - S&P 500, NASDAQ, VIX, BTC
+async function fetchMarketOverview() {
+  const overview = { updated: new Date().toISOString() };
+  
+  try {
+    // BTC from CoinGecko
+    const btcData = await fetchJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
+    if (btcData?.bitcoin) {
+      overview.btc = { price: btcData.bitcoin.usd, change24h: btcData.bitcoin.usd_24h_change };
+    }
+  } catch (e) {}
+  
+  try {
+    // S&P 500 from Stooq
+    const sp500 = await new Promise((resolve) => {
+      https.get('https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcvn&h&e=csv', { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          const lines = data.trim().split('\n');
+          if (lines.length >= 2) {
+            const parts = lines[1].split(',');
+            if (parts.length >= 5) {
+              const open = parseFloat(parts[3]);
+              const close = parseFloat(parts[6]);
+              const change = open > 0 ? ((close - open) / open * 100) : 0;
+              resolve({ price: close, change24h: change });
+            }
+          }
+          resolve(null);
+        });
+      }).on('error', () => resolve(null));
+    });
+    if (sp500) overview.sp500 = sp500;
+  } catch (e) {}
+  
+  try {
+    // NASDAQ from Stooq
+    const nasdaq = await new Promise((resolve) => {
+      https.get('https://stooq.com/q/l/?s=%5Endx&f=sd2t2ohlcvn&h&e=csv', { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          const lines = data.trim().split('\n');
+          if (lines.length >= 2) {
+            const parts = lines[1].split(',');
+            if (parts.length >= 5) {
+              const open = parseFloat(parts[3]);
+              const close = parseFloat(parts[6]);
+              const change = open > 0 ? ((close - open) / open * 100) : 0;
+              resolve({ price: close, change24h: change });
+            }
+          }
+          resolve(null);
+        });
+      }).on('error', () => resolve(null));
+    });
+    if (nasdaq) overview.nasdaq = nasdaq;
+  } catch (e) {}
+  
+  try {
+    // VIX from Stooq
+    const vix = await new Promise((resolve) => {
+      https.get('https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcvn&h&e=csv', { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          const lines = data.trim().split('\n');
+          if (lines.length >= 2) {
+            const parts = lines[1].split(',');
+            if (parts.length >= 5) {
+              const close = parseFloat(parts[6]);
+              resolve({ price: close });
+            }
+          }
+          resolve(null);
+        });
+      }).on('error', () => resolve(null));
+    });
+    if (vix) overview.vix = vix;
+  } catch (e) {}
+  
+  return overview;
 }
 
 // Gemini AI Summary
@@ -1758,11 +1866,17 @@ DŮLEŽITÉ:
       return await researchStockFallback(ticker);
     }
     
-    // Parse JSON z odpovědi
+    // Parse JSON z odpovědi - with sanitization
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        const parsed = JSON.parse(jsonMatch[0]);
+        // Try to sanitize common JSON issues from Gemini
+        let jsonStr = jsonMatch[0]
+          .replace(/,\s*}/g, '}')           // Remove trailing commas before }
+          .replace(/,\s*]/g, ']')           // Remove trailing commas before ]
+          .replace(/\n/g, ' ')              // Remove newlines in strings
+          .replace(/[\x00-\x1F]/g, ' ');    // Remove control characters
+        const parsed = JSON.parse(jsonStr);
         parsed.researchedAt = new Date().toISOString();
         parsed.model = GEMINI_PRO_MODEL;
         parsed.grounded = true;
@@ -2705,6 +2819,9 @@ async function checkAll() {
   // Fetch prices
   const prices = await fetchPrices();
   if (prices) state.prices = { timestamp: now.toISOString(), data: prices };
+  
+  // Fetch market overview (S&P 500, NASDAQ, VIX, BTC)
+  state.marketOverview = await fetchMarketOverview();
 
   // Generate summaries every hour
   const lastSummaryTime = state.lastSummary ? new Date(state.lastSummary).getTime() : 0;
@@ -2811,6 +2928,7 @@ async function checkAll() {
       watchlist: state.watchlist,
       liquity: state.liquity,
       liveFeed: state.liveFeed,
+      marketOverview: state.marketOverview,
       lastCheck: state.lastCheck, 
       lastSummary: state.lastSummary,
       lastNansen: state.lastNansen,
