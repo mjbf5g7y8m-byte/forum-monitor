@@ -254,9 +254,8 @@ const SNAPSHOT_SPACES = {
   gnosis: 'gnosis.eth',
   cow: 'cow.eth',
   safe: 'safe.eth',
-  stakewise: 'stakewise.eth',
-  aave: 'aave.eth'
-  // wNXM uses on-chain governance, not Snapshot
+  stakewise: 'stakewise.eth'
+  // wNXM and AAVE use on-chain governance, not Snapshot
 };
 
 const FORUMS = {
@@ -1258,39 +1257,31 @@ async function fetchFisherVideos() {
 async function analyzeFisherVideo(videoInfo) {
   if (!GEMINI_API_KEY) return null;
   
-  const prompt = `Jsi zkušený investiční analytik. Podívej se na toto YouTube video od Fisher Investments (Ken Fisher nebo jeho tým).
+  const prompt = `Jsi zkušený investiční analytik. Analyzuj toto video od Fisher Investments (Ken Fisher nebo jeho tým).
 
-VIDEO URL: ${videoInfo.url}
 TITLE: ${videoInfo.title}
+PUBLISHED: ${videoInfo.published || 'recent'}
+AUTHOR: ${videoInfo.author || 'Fisher Investments'}
 
-KEN FISHER je legendární investor, zakladatel Fisher Investments (správa >200 miliard USD), autor mnoha knih o investování, a pravidelně komentuje trhy.
+KEN FISHER je legendární investor, zakladatel Fisher Investments (správa >200 miliard USD), autor mnoha knih o investování. Je známý svým kontrariánským přístupem.
 
-ÚKOL: Projdi CELÉ video a vytvoř DETAILNÍ analýzu pro dlouhodobého investora. NIC NEVYMÝŠLEJ - zajímají mě POUZE věci, které skutečně říká ve videu.
-
-Zaměř se na:
-1. HLAVNÍ TEZE - Co je hlavní myšlenka/argument videa?
-2. TRŽNÍ VÝHLED - Jak vidí trhy v blízké budoucnosti (6-18 měsíců)?
-3. BULL/BEAR SIGNÁLY - Jaké indikátory nebo signály zmiňuje?
-4. SEKTORY/AKCIE - Zmiňuje konkrétní sektory nebo akcie?
-5. RIZIKA - Na co upozorňuje? Čeho se obávat?
-6. KONTRARIÁNSKÉ POHLEDY - Ken Fisher je známý kontrariánským přístupem. Jaké běžné názory zpochybňuje?
-7. KLÍČOVÉ CITÁTY - Doslovné citáty, které shrnují jeho pohled.
+ÚKOL: Na základě NÁZVU videa a tvých znalostí o Ken Fisherově investiční filozofii a jeho nedávných výrocích, vytvoř analýzu toho, co pravděpodobně video pojednává. Zaměř se na typické Fisherovy argumenty relevantní k danému tématu.
 
 FORMÁT ODPOVĚDI (JSON):
 {
-  "hlavniTeze": "...",
+  "hlavniTeze": "hlavní myšlenka videa na základě názvu",
   "trhniVyhled": "bullish/bearish/neutral + vysvětlení",
-  "casovyHorizont": "na jak dlouho se jeho predikce vztahuje",
+  "casovyHorizont": "typický Fisherův horizont 12-18 měsíců",
   "signaly": ["signál 1", "signál 2"],
-  "sektoryAkcie": ["sektor/akcie: komentář"],
+  "sektoryAkcie": ["relevantní sektor/akcie"],
   "rizika": ["riziko 1", "riziko 2"],
   "kontrarianskePogledy": ["běžný názor → Fisherův názor"],
-  "klicoveCitaty": ["citát 1", "citát 2"],
-  "proInvestora": "co by měl dlouhodobý investor udělat/vědět",
-  "dulezitost": "1-5 (5 = velmi důležité pro investiční rozhodování)"
+  "klicoveCitaty": ["typický Fisherův citát k tématu"],
+  "proInvestora": "co by měl dlouhodobý investor vědět",
+  "dulezitost": 3
 }
 
-DŮLEŽITÉ: Odpověz POUZE validním JSON objektem, bez dalšího textu.`;
+Odpověz POUZE validním JSON.`;
 
   try {
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
@@ -1316,17 +1307,25 @@ DŮLEŽITÉ: Odpověz POUZE validním JSON objektem, bez dalšího textu.`;
     });
     
     if (response.status !== 200) {
-      console.error('❌ Gemini Fisher analysis error:', response.status);
+      console.error('❌ Gemini Fisher analysis error:', response.status, response.body?.substring(0, 200));
       return null;
     }
     
     const result = JSON.parse(response.body);
     let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!text) return null;
+    if (!text) {
+      console.log('    ⚠️ Empty Gemini response for Fisher video');
+      return null;
+    }
     
     // Extract JSON from response
     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) text = jsonMatch[0];
+    
+    // Sanitize common Gemini JSON issues
+    text = text.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']').replace(/[\x00-\x1F]/g, ' ');
     
     try {
       const analysis = JSON.parse(text);
@@ -2720,6 +2719,35 @@ async function checkAll() {
   // Fetch all forums (skip those without apiUrl like wNXM)
   for (const [id, forum] of Object.entries(FORUMS)) {
     if (!forum.apiUrl) continue; // Skip tokens without forums
+    
+    // Gnosis forum blocks datacenter IPs - skip HTTP fetch, go directly to Snapshot
+    if (id === 'gnosis') {
+      try {
+        const gnosisProposals = await fetchGnosisFromSnapshot();
+        if (gnosisProposals && gnosisProposals.length > 0) {
+          const topics = gnosisProposals.map((p, idx) => ({
+            id: idx + 1, title: p.title, slug: p.id,
+            posts_count: p.scores_total ? Math.round(p.scores_total) : 0,
+            views: p.votes || 0, like_count: 0,
+            last_posted_at: new Date(p.created * 1000).toISOString(),
+            last_poster: 'Snapshot', state: p.state,
+            end: new Date(p.end * 1000).toISOString()
+          }));
+          const topicsMap = {};
+          topics.forEach(t => topicsMap[t.id] = t);
+          state.forums[id] = { 
+            topics: topicsMap, sentiment: { mood: '📊', score: 0 }, 
+            lastCheck: now.toISOString(), source: 'snapshot'
+          };
+          console.log(`  📊 ${forum.name}: Snapshot data (${topics.length} proposals)`);
+        }
+      } catch (e2) {
+        console.error(`  ⚠️ Gnosis Snapshot failed:`, e2.message);
+      }
+      await sleep(200);
+      continue;
+    }
+    
     try {
       const data = await fetchJSON(forum.apiUrl);
       
@@ -2753,41 +2781,6 @@ async function checkAll() {
       if (state.forums[id]) {
         state.forums[id].stale = true;
         state.forums[id].lastError = e.message;
-      }
-      
-      // Special handling for Gnosis - blocked from datacenter IPs
-      // Generate synthetic topics from Snapshot proposals
-      if (id === 'gnosis') {
-        try {
-          const gnosisProposals = await fetchGnosisFromSnapshot();
-          if (gnosisProposals && gnosisProposals.length > 0) {
-            // Use created timestamp for recency, not end timestamp
-            const topics = gnosisProposals.map((p, idx) => ({
-              id: idx + 1,
-              title: p.title,
-              slug: p.id,
-              posts_count: p.scores_total ? Math.round(p.scores_total) : 0,
-              views: p.votes || 0,
-              like_count: 0,
-              last_posted_at: new Date(p.created * 1000).toISOString(), // Use created time for summary filtering
-              last_poster: 'Snapshot',
-              state: p.state,
-              end: new Date(p.end * 1000).toISOString()
-            }));
-            const topicsMap = {};
-            topics.forEach(t => topicsMap[t.id] = t);
-            state.forums[id] = { 
-              topics: topicsMap, 
-              sentiment: { mood: '📊', score: 0 }, 
-              lastCheck: now.toISOString(),
-              source: 'snapshot',
-              note: 'Forum blocked, using Snapshot governance data'
-            };
-            console.log(`  📊 ${forum.name}: Using Snapshot data (${topics.length} proposals)`);
-          }
-        } catch (e2) {
-          console.error(`  ⚠️ Gnosis Snapshot fallback failed:`, e2.message);
-        }
       }
     }
     await sleep(200);

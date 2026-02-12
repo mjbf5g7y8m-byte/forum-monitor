@@ -240,35 +240,44 @@ app.get('/', (req, res) => {
   const fisherVideos = fisher.videos || [];
   let fisherHtml = '';
   if (fisherVideos.length > 0) {
-    const avgImportance = (fisherVideos.reduce((a, v) => a + (v.importance || 3), 0) / fisherVideos.length).toFixed(1);
+    const avgImportance = (fisherVideos.reduce((a, v) => a + (parseInt(v.dulezitost) || v.importance || 3), 0) / fisherVideos.length).toFixed(1);
+    const fisherSentiment = fisher.summary?.overallSentiment;
     fisherHtml = `
     <div class="section-card" data-section="fisher">
       <div class="section-summary" onclick="toggleSection('fisher')">
         <div class="section-icon">🎣</div>
         <div class="section-info">
-          <div class="section-title">Ken Fisher Insights</div>
+          <div class="section-title">Ken Fisher Insights ${fisherSentiment === 'bullish' ? '<span class="badge" style="background:#22c55e;color:#000">🐂 BULL</span>' : fisherSentiment === 'bearish' ? '<span class="badge" style="background:#ef4444;color:#fff">🐻 BEAR</span>' : ''}</div>
           <div class="section-stats">
             <span class="stat">${fisherVideos.length} videí</span>
             <span class="stat">★ ${avgImportance}</span>
-            <span class="stat preview">${escapeHtml(fisherVideos[0]?.title?.substring(0, 40) || '')}...</span>
+            <span class="stat preview">${escapeHtml((fisherVideos[0]?.videoTitle || fisherVideos[0]?.title || '').substring(0, 40))}...</span>
           </div>
         </div>
         <div class="section-right"><span class="expand-icon">▼</span></div>
       </div>
       <div class="section-details">
-        ${fisherVideos.map(v => `
+        ${fisherVideos.map(v => {
+          const title = v.videoTitle || v.title || '';
+          const url = v.videoUrl || v.url || '';
+          const imp = parseInt(v.dulezitost) || v.importance || 3;
+          const mainThesis = v.hlavniTeze || v.analysis?.celkovySouhrn || '';
+          const signals = v.signaly || v.analysis?.klicoveBody || [];
+          const quotes = v.klicoveCitaty || [];
+          return `
           <div class="fisher-video" onclick="toggleTopic(this)">
             <div class="topic-header">
-              <span class="topic-icon">${'★'.repeat(v.importance || 3)}</span>
-              <span class="topic-name">${escapeHtml(v.title?.substring(0, 50) || '')}</span>
-              <a href="${escapeHtml(v.url || '')}" target="_blank" class="action-btn" onclick="event.stopPropagation()">▶️</a>
+              <span class="topic-icon">${'★'.repeat(Math.min(imp, 5))}</span>
+              <span class="topic-name">${escapeHtml(title.substring(0, 50))}</span>
+              <a href="${escapeHtml(url)}" target="_blank" class="action-btn" onclick="event.stopPropagation()">▶️</a>
             </div>
             <div class="topic-content">
-              ${v.analysis?.celkovySouhrn ? `<div class="summary-text">${escapeHtml(v.analysis.celkovySouhrn)}</div>` : ''}
-              ${(v.analysis?.klicoveBody || []).slice(0, 3).map(b => `<div class="key-point">• ${escapeHtml(b)}</div>`).join('')}
+              ${mainThesis ? `<div class="summary-text">${escapeHtml(mainThesis)}</div>` : ''}
+              ${signals.slice(0, 3).map(b => `<div class="key-point">• ${escapeHtml(b)}</div>`).join('')}
+              ${quotes.length > 0 ? `<div class="quote">"${escapeHtml(quotes[0])}"</div>` : ''}
             </div>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   }
@@ -383,10 +392,10 @@ app.get('/', (req, res) => {
           ${liveFeed.slice(0, 20).map(item => {
             const catClass = item.category || 'forum';
             return `
-            <a href="${escapeHtml(item.url || '#')}" target="_blank" class="feed-item ${catClass}">
+            <a href="${escapeHtml(item.link || item.url || '#')}" target="_blank" class="feed-item ${catClass}">
               <span class="feed-icon">${escapeHtml(item.icon || '📌')}</span>
               <span class="feed-title">${escapeHtml(item.title?.substring(0, 60) || '')}</span>
-              <span class="feed-time">${timeAgo(item.timestamp)}</span>
+              <span class="feed-time">${timeAgo(item.time || item.timestamp)}</span>
             </a>`;
           }).join('')}
         </div>
