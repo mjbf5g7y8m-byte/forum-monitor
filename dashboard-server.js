@@ -138,7 +138,8 @@ app.get('/', (req, res) => {
     </div>`;
 
   // ============ SECTION: Watchlist ============
-  const watchlist = Array.isArray(data.watchlist) ? data.watchlist : Object.values(data.watchlist || {});
+  const rawWl = data.watchlist;
+  const watchlist = Array.isArray(rawWl) ? rawWl : Array.isArray(rawWl?.stocks) ? rawWl.stocks : Object.values(rawWl || {});
   const watchlistBulls = watchlist.filter(s => s.sentiment === 'bullish').length;
   const watchlistBears = watchlist.filter(s => s.sentiment === 'bearish').length;
   const bigMovers = watchlist.filter(s => Math.abs(parseFloat(s.priceChange)) >= 3).slice(0, 3);
