@@ -1,0 +1,12 @@
+[Unit]
+Description=Arwen Moltlaunch - Register & Hire (runs once on boot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /root/arwen_tools/moltlaunch_autonomous.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

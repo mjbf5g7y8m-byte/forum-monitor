@@ -457,8 +457,31 @@ function calculateForumSentiment(topics) {
 async function fetchPrices() {
   try {
     const ids = Object.values(FORUMS).map(f => f.token).join(',');
-    return await fetchJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`);
+    return await fetchJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${ids},ethereum&vs_currencies=usd,eth&include_24hr_change=true&include_market_cap=true`);
   } catch (e) { console.error('❌ Price fetch error:', e.message); return null; }
+}
+
+// Fetch 12-month daily price history for token/ETH ratio charts
+async function fetchTokenEthHistory() {
+  const history = {};
+  const tokens = Object.values(FORUMS).map(f => f.token);
+  
+  for (const token of tokens) {
+    try {
+      // CoinGecko market_chart: 365 days, daily
+      const url = `https://api.coingecko.com/api/v3/coins/${token}/market_chart?vs_currency=eth&days=365&interval=daily`;
+      const data = await fetchJSON(url);
+      if (data?.prices) {
+        // Store as array of [timestamp_ms, price_in_eth]
+        history[token] = data.prices.map(([ts, price]) => [ts, price]);
+      }
+      await sleep(1500); // CoinGecko rate limit
+    } catch (e) {
+      // Skip silently - historical data is optional
+    }
+  }
+  
+  return Object.keys(history).length > 0 ? { data: history, updated: new Date().toISOString() } : null;
 }
 
 // Market Overview - S&P 500, NASDAQ, VIX, BTC
@@ -2786,11 +2809,24 @@ async function checkAll() {
     await sleep(200);
   }
 
-  // Fetch prices
+  // Fetch prices (including ETH pairs)
   const prices = await fetchPrices();
   if (prices) state.prices = { timestamp: now.toISOString(), data: prices };
   
-  // Fetch market overview (S&P 500, NASDAQ, VIX, BTC)
+  // Fetch token/ETH 12-month history (every 4 hours - heavy call)
+  const TOKEN_HISTORY_INTERVAL = 4 * 60 * 60 * 1000;
+  const lastHistoryTime = state.lastTokenHistory ? new Date(state.lastTokenHistory).getTime() : 0;
+  if (now.getTime() - lastHistoryTime > TOKEN_HISTORY_INTERVAL || !state.lastTokenHistory) {
+    console.log('📊 Fetching 12-month token/ETH history...');
+    const ethHistory = await fetchTokenEthHistory();
+    if (ethHistory) {
+      state.tokenEthHistory = ethHistory;
+      state.lastTokenHistory = now.toISOString();
+      console.log(`  ✅ History for ${Object.keys(ethHistory.data).length} tokens`);
+    }
+  }
+  
+  // Fetch market overview (S&P 500, NASDAQ)
   state.marketOverview = await fetchMarketOverview();
 
   // Generate summaries every hour
@@ -2899,6 +2935,7 @@ async function checkAll() {
       liquity: state.liquity,
       liveFeed: state.liveFeed,
       marketOverview: state.marketOverview,
+      tokenEthHistory: state.tokenEthHistory,
       lastCheck: state.lastCheck, 
       lastSummary: state.lastSummary,
       lastNansen: state.lastNansen,

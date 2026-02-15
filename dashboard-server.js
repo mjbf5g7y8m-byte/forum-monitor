@@ -50,7 +50,7 @@ function formatTimeLeft(endTimestamp) {
 // API endpoints
 app.post('/api/push', (req, res) => {
   if (req.headers['x-api-key'] !== API_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const { forums, prices, activity, summaries, nansen, snapshot, xtb, fisher, watchlist, liquity, liveFeed, marketOverview, lastCheck, lastSummary, lastNansen, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
+  const { forums, prices, activity, summaries, nansen, snapshot, xtb, fisher, watchlist, liquity, liveFeed, marketOverview, tokenEthHistory, lastCheck, lastSummary, lastNansen, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
   const data = loadData();
   const wasRefreshRequested = data.refreshRequested || false;
   if (forums) data.forums = forums;
@@ -65,6 +65,7 @@ app.post('/api/push', (req, res) => {
   if (liquity) data.liquity = liquity;
   if (liveFeed) data.liveFeed = liveFeed;
   if (marketOverview) data.marketOverview = marketOverview;
+  if (tokenEthHistory) data.tokenEthHistory = tokenEthHistory;
   if (lastCheck) data.lastCheck = lastCheck;
   if (lastSummary) data.lastSummary = lastSummary;
   if (lastNansen) data.lastNansen = lastNansen;
@@ -112,11 +113,67 @@ app.get('/', (req, res) => {
   const mo = data.marketOverview || {};
   const geminiModel = data.geminiModel || 'unknown';
   const gnoPrice = prices.gnosis;
+  const ethPrice = prices.ethereum?.usd || 0;
+  const tokenHistory = data.tokenEthHistory?.data || {};
 
   // Helper functions for view generation
   const formatPrice = (p) => p ? (p > 1000 ? p.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : p.toFixed(2)) : 'N/A';
+  const formatEth = (p) => p != null ? (p >= 1 ? p.toFixed(2) : p >= 0.001 ? p.toFixed(4) : p.toFixed(6)) : '?';
   const formatChange = (c) => c != null ? `${c > 0 ? '+' : ''}${c.toFixed(1)}%` : '';
   const changeClass = (c) => c > 0 ? 'up' : c < 0 ? 'down' : '';
+
+  // SVG sparkline chart generator for token/ETH history
+  function generateEthChart(tokenId, width = 280, height = 80) {
+    const points = tokenHistory[tokenId];
+    if (!points || points.length < 10) return '';
+    
+    const vals = points.map(p => p[1]);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const range = max - min || 1;
+    
+    // Generate SVG path
+    const stepX = width / (vals.length - 1);
+    const pathPoints = vals.map((v, i) => {
+      const x = (i * stepX).toFixed(1);
+      const y = (height - 4 - ((v - min) / range) * (height - 8)).toFixed(1);
+      return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+    }).join(' ');
+    
+    // Color based on trend (first vs last)
+    const isUp = vals[vals.length - 1] >= vals[0];
+    const color = isUp ? '#22c55e' : '#ef4444';
+    const change12m = ((vals[vals.length - 1] - vals[0]) / vals[0] * 100).toFixed(1);
+    
+    // Date labels
+    const firstDate = new Date(points[0][0]);
+    const lastDate = new Date(points[points.length - 1][0]);
+    const fmtDate = (d) => `${d.getMonth() + 1}/${d.getFullYear().toString().slice(2)}`;
+    
+    return `
+      <div class="eth-chart-container">
+        <div class="eth-chart-header">
+          <span class="eth-chart-label">vs ETH (12m)</span>
+          <span class="eth-chart-change ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${change12m}%</span>
+        </div>
+        <svg viewBox="0 0 ${width} ${height}" class="eth-chart">
+          <defs>
+            <linearGradient id="grad-${tokenId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="${pathPoints} L${width},${height} L0,${height} Z" fill="url(#grad-${tokenId})" />
+          <path d="${pathPoints}" fill="none" stroke="${color}" stroke-width="1.5"/>
+          <circle cx="${width}" cy="${(height - 4 - ((vals[vals.length - 1] - min) / range) * (height - 8)).toFixed(1)}" r="2.5" fill="${color}"/>
+        </svg>
+        <div class="eth-chart-labels">
+          <span>${fmtDate(firstDate)}</span>
+          <span>Now: ${formatEth(vals[vals.length - 1])} ETH</span>
+          <span>${fmtDate(lastDate)}</span>
+        </div>
+      </div>`;
+  }
 
   // ============ SECTION: Market Overview ============
   const marketHtml = `
@@ -128,7 +185,8 @@ app.get('/', (req, res) => {
           <div class="section-stats">
             ${mo.sp500 ? `<span class="stat">S&P ${formatPrice(mo.sp500.price)} <em class="${changeClass(mo.sp500.change24h)}">${formatChange(mo.sp500.change24h)}</em></span>` : ''}
             ${mo.nasdaq ? `<span class="stat">NDX ${formatPrice(mo.nasdaq.price)} <em class="${changeClass(mo.nasdaq.change24h)}">${formatChange(mo.nasdaq.change24h)}</em></span>` : ''}
-            ${gnoPrice ? `<span class="stat">GNO $${gnoPrice.usd?.toFixed(0)} <em class="${changeClass(gnoPrice.usd_24h_change)}">${formatChange(gnoPrice.usd_24h_change)}</em></span>` : ''}
+            ${ethPrice ? `<span class="stat">ETH $${formatPrice(ethPrice)}</span>` : ''}
+            ${gnoPrice ? `<span class="stat">GNO $${gnoPrice.usd?.toFixed(0)} <em class="eth-sub">${formatEth(gnoPrice.eth)} Ξ</em></span>` : ''}
           </div>
         </div>
         <div class="section-right">
@@ -332,7 +390,8 @@ app.get('/', (req, res) => {
             ${Object.entries(FORUMS).map(([id, cfg]) => {
               const p = prices[cfg.coingecko];
               const change = p?.usd_24h_change || 0;
-              return `<span class="stat ${changeClass(change)}">${cfg.icon} ${formatChange(change)}</span>`;
+              const ethPr = p?.eth;
+              return `<span class="stat ${changeClass(change)}">${cfg.icon} ${ethPr != null ? formatEth(ethPr) + 'Ξ' : ''} ${formatChange(change)}</span>`;
             }).join('')}
           </div>
         </div>
@@ -350,13 +409,17 @@ app.get('/', (req, res) => {
             const activeVotes = tokenSnapshot.proposals || [];
             const summary = summaries[id];
             
+            const ethPr = price?.eth;
+            const chartHtml = generateEthChart(cfg.coingecko);
+            
             return `
-            <div class="forum-card" style="--accent:${cfg.color}">
+            <div class="forum-card" style="--accent:${cfg.color}" onclick="this.classList.toggle('expanded')">
               <div class="forum-header">
                 <span class="forum-icon">${cfg.icon}</span>
                 <span class="forum-name">${cfg.name}</span>
                 <span class="forum-price ${changeClass(change)}">$${price?.usd?.toFixed(2) || '?'} ${formatChange(change)}</span>
               </div>
+              ${ethPr != null ? `<div class="forum-eth-price">${formatEth(ethPr)} Ξ</div>` : ''}
               ${activeVotes.length > 0 ? `<div class="forum-votes">🗳️ ${activeVotes.length} active vote${activeVotes.length > 1 ? 's' : ''}</div>` : ''}
               ${summary ? `<div class="forum-summary">${escapeHtml(summary.text?.substring(0, 100))}...</div>` : ''}
               <div class="forum-topics">
@@ -367,6 +430,7 @@ app.get('/', (req, res) => {
                 ${(tokenNansen.buys?.length || 0) > 0 ? `<span class="nansen-badge buy">📈 ${tokenNansen.buys.length}</span>` : ''}
                 ${(tokenNansen.transfers?.length || 0) > 0 ? `<span class="nansen-badge">🔄 ${tokenNansen.transfers.length}</span>` : ''}
               </div>
+              <div class="forum-chart-area">${chartHtml}</div>
             </div>`;
           }).join('')}
         </div>
@@ -518,10 +582,22 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .forum-topics{display:flex;flex-direction:column;gap:4px}
 .forum-topic{font-size:11px;color:var(--t);text-decoration:none;padding:6px 8px;background:#111;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .forum-topic:hover{background:#1a1a1a}
+.forum-eth-price{font-size:11px;color:var(--p);margin-bottom:6px;font-weight:500}
 .forum-nansen{display:flex;gap:6px;margin-top:8px}
 .nansen-badge{font-size:10px;padding:2px 6px;background:#1a1a1a;border-radius:4px}
 .nansen-badge.sell{color:var(--r)}
 .nansen-badge.buy{color:var(--g)}
+.forum-chart-area{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.forum-card.expanded .forum-chart-area{display:block}
+.eth-chart-container{background:#0a0a0a;border-radius:8px;padding:10px 12px}
+.eth-chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.eth-chart-label{font-size:10px;color:var(--t3);text-transform:uppercase;font-weight:600}
+.eth-chart-change{font-size:12px;font-weight:700}
+.eth-chart-change.up{color:var(--g)}
+.eth-chart-change.down{color:var(--r)}
+.eth-chart{width:100%;height:auto;display:block}
+.eth-chart-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px}
+.eth-sub{font-style:normal;font-size:10px;color:var(--p);margin-left:4px}
 
 /* Feed */
 .feed-list{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:400px;overflow-y:auto}
