@@ -2517,7 +2517,13 @@ async function fetchM2AndSP500() {
     // Try API first if key available
     if (FRED_API_KEY) {
       const url = `https://api.stlouisfed.org/fred/series/observations?series_id=M2SL&api_key=${FRED_API_KEY}&file_type=json&observation_start=${start}&frequency=m`;
-      const res = await fetchJSON(url);
+      const res = await new Promise((resolve, reject) => {
+        https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
+          let body = '';
+          resp.on('data', chunk => body += chunk);
+          resp.on('end', () => resolve({ status: resp.statusCode, body }));
+        }).on('error', reject);
+      });
       if (res.status === 200) {
         const data = JSON.parse(res.body);
         result.m2 = (data.observations || [])
@@ -2530,7 +2536,13 @@ async function fetchM2AndSP500() {
     // Fallback: public CSV (no key needed)
     if (!m2Fetched) {
       const csvUrl = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL&cosd=${start}&fq=Monthly`;
-      const csvRes = await fetchJSON(csvUrl);
+      const csvRes = await new Promise((resolve, reject) => {
+        https.get(csvUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => resolve({ status: resp.statusCode, body: data }));
+        }).on('error', reject);
+      });
       if (csvRes.status === 200) {
         const lines = csvRes.body.trim().split('\n').slice(1);
         result.m2 = lines
