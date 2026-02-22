@@ -20,7 +20,7 @@ app.use(express.json({ limit: '5mb' }));
 
 function loadData() {
   try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
-  return { forums: {}, prices: {}, activity: [], summaries: {}, nansen: {}, snapshot: {}, lastCheck: null, lastPush: null, refreshRequested: false };
+  return { forums: {}, prices: {}, activity: [], summaries: {}, snapshot: {}, lastCheck: null, lastPush: null, refreshRequested: false };
 }
 
 function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
@@ -50,14 +50,13 @@ function formatTimeLeft(endTimestamp) {
 // API endpoints
 app.post('/api/push', (req, res) => {
   if (req.headers['x-api-key'] !== API_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const { forums, prices, activity, summaries, nansen, snapshot, xtb, fisher, watchlist, liquity, liveFeed, marketOverview, tokenEthHistory, lastCheck, lastSummary, lastNansen, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
+  const { forums, prices, activity, summaries, snapshot, xtb, fisher, watchlist, liquity, liveFeed, marketOverview, tokenEthHistory, m2sp500, lastCheck, lastSummary, lastSnapshot, lastXtb, lastFisher, lastWatchlist, lastLiquity, geminiModel } = req.body;
   const data = loadData();
   const wasRefreshRequested = data.refreshRequested || false;
   if (forums) data.forums = forums;
   if (prices) data.prices = prices;
   if (activity) data.activity = activity;
   if (summaries) data.summaries = summaries;
-  if (nansen) data.nansen = nansen;
   if (snapshot) data.snapshot = snapshot;
   if (xtb) data.xtb = xtb;
   if (fisher) data.fisher = fisher;
@@ -66,9 +65,9 @@ app.post('/api/push', (req, res) => {
   if (liveFeed) data.liveFeed = liveFeed;
   if (marketOverview) data.marketOverview = marketOverview;
   if (tokenEthHistory) data.tokenEthHistory = tokenEthHistory;
+  if (m2sp500) data.m2sp500 = m2sp500;
   if (lastCheck) data.lastCheck = lastCheck;
   if (lastSummary) data.lastSummary = lastSummary;
-  if (lastNansen) data.lastNansen = lastNansen;
   if (lastSnapshot) data.lastSnapshot = lastSnapshot;
   if (lastXtb) data.lastXtb = lastXtb;
   if (lastFisher) data.lastFisher = lastFisher;
@@ -99,7 +98,7 @@ app.get('/api/check-refresh', (req, res) => {
 app.get('/api/data', (req, res) => res.json(loadData()));
 app.get('/api/stats', (req, res) => {
   const d = loadData();
-  res.json({ forums: Object.keys(d.forums).length, lastCheck: d.lastCheck, lastPush: d.lastPush, lastSummary: d.lastSummary, lastNansen: d.lastNansen, lastSnapshot: d.lastSnapshot, geminiModel: d.geminiModel });
+  res.json({ forums: Object.keys(d.forums).length, lastCheck: d.lastCheck, lastPush: d.lastPush, lastSummary: d.lastSummary, lastSnapshot: d.lastSnapshot, geminiModel: d.geminiModel });
 });
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
@@ -108,8 +107,8 @@ app.get('/', (req, res) => {
   const data = loadData();
   const prices = data.prices?.data || {};
   const summaries = data.summaries || {};
-  const nansen = data.nansen || {};
   const snapshot = data.snapshot || {};
+  const m2sp500 = data.m2sp500 || {};
   const mo = data.marketOverview || {};
   const geminiModel = data.geminiModel || 'unknown';
   const gnoPrice = prices.gnosis;
@@ -194,6 +193,91 @@ app.get('/', (req, res) => {
         </div>
       </div>
     </div>`;
+
+  // ============ SECTION: M2 vs S&P 500 ============
+  let m2Html = '';
+  if (m2sp500.m2?.length > 1 && m2sp500.sp500tr?.length > 1) {
+    const m2Data = m2sp500.m2;
+    const spData = m2sp500.sp500tr;
+    const m2First = m2Data[0].value;
+    const spFirst = spData[0].value;
+
+    // Build aligned indexed series (both start at 100)
+    const m2Indexed = m2Data.map(p => ({ date: p.date, value: (p.value / m2First) * 100 }));
+    const spIndexed = spData.map(p => ({ date: p.date, value: (p.value / spFirst) * 100 }));
+
+    // SVG dual-line chart
+    const chartW = 560, chartH = 200, pad = 4;
+    const allVals = [...m2Indexed.map(p => p.value), ...spIndexed.map(p => p.value)];
+    const minV = Math.min(...allVals);
+    const maxV = Math.max(...allVals);
+    const rangeV = maxV - minV || 1;
+
+    const toPath = (series, color) => {
+      if (series.length < 2) return '';
+      const stepX = (chartW - pad * 2) / (series.length - 1);
+      const pts = series.map((p, i) => {
+        const x = (pad + i * stepX).toFixed(1);
+        const y = (chartH - pad - ((p.value - minV) / rangeV) * (chartH - pad * 2)).toFixed(1);
+        return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+      }).join(' ');
+      return `<path d="${pts}" fill="none" stroke="${color}" stroke-width="2"/>`;
+    };
+
+    const m2Path = toPath(m2Indexed, '#f59e0b');
+    const spPath = toPath(spIndexed, '#3b82f6');
+
+    const m2Latest = m2Data[m2Data.length - 1].value;
+    const m2Yoy = m2sp500.m2YoY;
+    const m2G = m2sp500.m2Growth;
+    const spG = m2sp500.sp500Growth;
+    const spBeatsM2 = parseFloat(spG) > parseFloat(m2G);
+
+    const firstDate = m2Data[0].date;
+    const lastDate = m2Data[m2Data.length - 1].date;
+
+    m2Html = `
+    <div class="section-card" data-section="m2sp500">
+      <div class="section-summary" onclick="toggleSection('m2sp500')">
+        <div class="section-icon">💵</div>
+        <div class="section-info">
+          <div class="section-title">M2 vs S&P 500 Total Return</div>
+          <div class="section-stats">
+            <span class="stat" style="color:var(--y)">M2 $${(m2Latest / 1000).toFixed(1)}T</span>
+            ${m2Yoy ? `<span class="stat ${parseFloat(m2Yoy) > 0 ? 'up' : 'down'}">YoY ${m2Yoy}%</span>` : ''}
+            <span class="stat" style="color:var(--y)">5y +${m2G}%</span>
+            <span class="stat" style="color:var(--b)">S&P TR 5y +${spG}%</span>
+            <span class="stat ${spBeatsM2 ? 'up' : 'down'}">${spBeatsM2 ? 'S&P vede' : 'M2 vede'}</span>
+          </div>
+        </div>
+        <div class="section-right"><span class="expand-icon">▼</span></div>
+      </div>
+      <div class="section-details">
+        <div class="m2-chart-wrap">
+          <svg viewBox="0 0 ${chartW} ${chartH}" class="m2-chart">
+            ${m2Path}
+            ${spPath}
+          </svg>
+          <div class="m2-chart-legend">
+            <span class="m2-legend-item" style="color:var(--y)">● M2 Money Supply</span>
+            <span class="m2-legend-item" style="color:var(--b)">● S&P 500 Total Return</span>
+          </div>
+          <div class="m2-chart-labels">
+            <span>${firstDate.substring(0, 7)}</span>
+            <span>Indexed to 100 at start</span>
+            <span>${lastDate.substring(0, 7)}</span>
+          </div>
+        </div>
+        <div class="detail-grid" style="margin-top:12px">
+          <div class="detail-item"><span class="label">M2 Money Supply</span><span class="value" style="color:var(--y)">$${(m2Latest / 1000).toFixed(2)}T</span></div>
+          <div class="detail-item"><span class="label">M2 5-Year Growth</span><span class="value">+${m2G}%</span></div>
+          ${m2Yoy ? `<div class="detail-item"><span class="label">M2 Year-over-Year</span><span class="value ${parseFloat(m2Yoy) > 0 ? '' : 'alert'}">${m2Yoy}%</span></div>` : ''}
+          <div class="detail-item"><span class="label">S&P 500 TR 5-Year</span><span class="value" style="color:var(--b)">+${spG}%</span></div>
+        </div>
+        <div class="detail-meta">Data: FRED (M2SL) + Yahoo Finance (^SP500TR) | Updated: ${m2sp500.updated ? timeAgo(m2sp500.updated) : 'N/A'}</div>
+      </div>
+    </div>`;
+  }
 
   // ============ SECTION: Watchlist ============
   const rawWl = data.watchlist;
@@ -404,7 +488,6 @@ app.get('/', (req, res) => {
             const topics = Object.values(forum.topics || {}).sort((a, b) => new Date(b.last_posted_at) - new Date(a.last_posted_at)).slice(0, 3);
             const price = prices[cfg.coingecko];
             const change = price?.usd_24h_change || 0;
-            const tokenNansen = nansen[id] || {};
             const tokenSnapshot = snapshot[id] || {};
             const activeVotes = tokenSnapshot.proposals || [];
             const summary = summaries[id];
@@ -421,14 +504,9 @@ app.get('/', (req, res) => {
               </div>
               ${ethPr != null ? `<div class="forum-eth-price">${formatEth(ethPr)} Ξ</div>` : ''}
               ${activeVotes.length > 0 ? `<div class="forum-votes">🗳️ ${activeVotes.length} active vote${activeVotes.length > 1 ? 's' : ''}</div>` : ''}
-              ${summary ? `<div class="forum-summary">${escapeHtml(summary.text?.substring(0, 100))}...</div>` : ''}
+              ${summary ? `<div class="ai-summary"><span class="ai-label">🤖 AI</span> ${escapeHtml(summary.text)}</div>` : ''}
               <div class="forum-topics">
-                ${topics.map(t => `<a href="${forumUrls[id]}/t/${t.slug}/${t.id}" target="_blank" class="forum-topic">${escapeHtml(t.title?.substring(0, 40))}</a>`).join('')}
-              </div>
-              <div class="forum-nansen">
-                ${(tokenNansen.sells?.length || 0) > 0 ? `<span class="nansen-badge sell">📉 ${tokenNansen.sells.length}</span>` : ''}
-                ${(tokenNansen.buys?.length || 0) > 0 ? `<span class="nansen-badge buy">📈 ${tokenNansen.buys.length}</span>` : ''}
-                ${(tokenNansen.transfers?.length || 0) > 0 ? `<span class="nansen-badge">🔄 ${tokenNansen.transfers.length}</span>` : ''}
+                ${topics.map(t => `<a href="${forumUrls[id]}/t/${t.slug}/${t.id}" target="_blank" class="forum-topic">${escapeHtml(t.title?.substring(0, 50))}</a>`).join('')}
               </div>
               <div class="forum-chart-area">${chartHtml}</div>
             </div>`;
@@ -582,15 +660,12 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .forum-price.up{color:var(--g)}
 .forum-price.down{color:var(--r)}
 .forum-votes{font-size:11px;color:var(--b);margin-bottom:6px}
-.forum-summary{font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:8px}
+.ai-summary{font-size:12px;color:var(--t);line-height:1.6;margin-bottom:10px;padding:10px 12px;background:rgba(168,85,247,0.08);border-left:3px solid var(--p);border-radius:0 8px 8px 0}
+.ai-label{font-size:10px;font-weight:700;color:var(--p);text-transform:uppercase;margin-right:4px}
 .forum-topics{display:flex;flex-direction:column;gap:4px}
 .forum-topic{font-size:11px;color:var(--t);text-decoration:none;padding:6px 8px;background:#111;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .forum-topic:hover{background:#1a1a1a}
 .forum-eth-price{font-size:11px;color:var(--p);margin-bottom:6px;font-weight:500}
-.forum-nansen{display:flex;gap:6px;margin-top:8px}
-.nansen-badge{font-size:10px;padding:2px 6px;background:#1a1a1a;border-radius:4px}
-.nansen-badge.sell{color:var(--r)}
-.nansen-badge.buy{color:var(--g)}
 .forum-chart-area{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 .forum-card.expanded .forum-chart-area{display:block}
 .eth-chart-container{background:#0a0a0a;border-radius:8px;padding:10px 12px}
@@ -603,6 +678,13 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .eth-chart-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px}
 .eth-sub{font-style:normal;font-size:10px;color:var(--p);margin-left:4px}
 
+/* M2 Chart */
+.m2-chart-wrap{background:#0a0a0a;border-radius:8px;padding:14px}
+.m2-chart{width:100%;height:auto;display:block}
+.m2-chart-legend{display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:11px;font-weight:600}
+.m2-legend-item{display:flex;align-items:center;gap:4px}
+.m2-chart-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:6px}
+
 /* Feed */
 .feed-sidebar-header{cursor:default;border-bottom:1px solid var(--border)}
 .feed-sidebar-header:hover{background:transparent}
@@ -611,7 +693,7 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .feed-item:hover{background:#1a1a1a}
 .feed-item.forum{border-left-color:var(--b)}
 .feed-item.analysis{border-left-color:var(--p)}
-.feed-item.nansen{border-left-color:var(--y)}
+.feed-item.price{border-left-color:var(--y)}
 .feed-item.governance{border-left-color:var(--p)}
 .feed-item.defi{border-left-color:var(--g)}
 .feed-icon{font-size:14px}
@@ -668,13 +750,14 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
     ${marketHtml}
     <div class="dashboard-grid">
       <div class="col-left">
+        ${forumsHtml}
+        ${m2Html}
+      </div>
+      <div class="col-mid">
         ${watchlistHtml}
         ${xtbHtml}
         ${fisherHtml}
-      </div>
-      <div class="col-mid">
         ${liquityHtml}
-        ${forumsHtml}
       </div>
       <div class="col-right">
         ${feedHtml}

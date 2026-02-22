@@ -185,7 +185,7 @@ async function scrapeWithBrowserbase(url, extractFn, options = {}) {
 const STATE_FILE = path.join(__dirname, '.forum-monitor-state.json');
 const CHECK_INTERVAL = 60 * 1000;
 const SUMMARY_INTERVAL = 60 * 60 * 1000; // 1 hodina
-const NANSEN_INTERVAL = 10 * 60 * 1000;  // 10 minut
+const M2_INTERVAL = 24 * 60 * 60 * 1000; // 1x denně
 const DASHBOARD_URL = 'http://localhost:3000/api/push';
 const DASHBOARD_REFRESH_URL = 'http://localhost:3000/api/check-refresh';
 const API_KEY = 'gnosis-monitor-key-2026';
@@ -2500,6 +2500,92 @@ async function checkRefreshRequested() {
   } catch (e) { return false; }
 }
 
+// ========== M2 MONEY SUPPLY & S&P 500 TR ==========
+const FRED_API_KEY = process.env.FRED_API_KEY;
+
+async function fetchM2AndSP500() {
+  console.log('💵 Fetching M2 Money Supply & S&P 500 TR...');
+  const result = { m2: [], sp500tr: [], updated: new Date().toISOString() };
+
+  // M2 Money Supply from FRED (monthly, seasonally adjusted, last 5 years)
+  if (FRED_API_KEY) {
+    try {
+      const startDate = new Date();
+      startDate.setFullYear(startDate.getFullYear() - 5);
+      const start = startDate.toISOString().split('T')[0];
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=M2SL&api_key=${FRED_API_KEY}&file_type=json&observation_start=${start}&frequency=m`;
+      const res = await fetchJSON(url);
+      if (res.status === 200) {
+        const data = JSON.parse(res.body);
+        result.m2 = (data.observations || [])
+          .filter(o => o.value !== '.')
+          .map(o => ({ date: o.date, value: parseFloat(o.value) }));
+        console.log(`  📊 M2: ${result.m2.length} monthly data points`);
+      }
+    } catch (e) { console.error('❌ M2 fetch error:', e.message); }
+  } else {
+    console.log('  ⚠️ FRED_API_KEY not set, skipping M2');
+  }
+
+  // S&P 500 Total Return from Yahoo Finance (last 5 years, monthly)
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const fiveYearsAgo = now - 5 * 365 * 24 * 3600;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5ESP500TR?period1=${fiveYearsAgo}&period2=${now}&interval=1mo`;
+    const res = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'query1.finance.yahoo.com',
+        path: `/v8/finance/chart/%5ESP500TR?period1=${fiveYearsAgo}&period2=${now}&interval=1mo`,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      };
+      https.get(options, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => resolve({ status: resp.statusCode, body: data }));
+      }).on('error', reject);
+    });
+
+    if (res.status === 200) {
+      const data = JSON.parse(res.body);
+      const chart = data.chart?.result?.[0];
+      if (chart) {
+        const timestamps = chart.timestamp || [];
+        const closes = chart.indicators?.quote?.[0]?.close || [];
+        result.sp500tr = timestamps.map((t, i) => ({
+          date: new Date(t * 1000).toISOString().split('T')[0],
+          value: closes[i]
+        })).filter(p => p.value != null);
+        console.log(`  📈 S&P 500 TR: ${result.sp500tr.length} monthly data points`);
+      }
+    } else {
+      console.log(`  ⚠️ Yahoo Finance SP500TR: HTTP ${res.status}`);
+    }
+  } catch (e) { console.error('❌ SP500TR fetch error:', e.message); }
+
+  // Compute comparison metrics
+  if (result.m2.length > 1 && result.sp500tr.length > 1) {
+    const m2First = result.m2[0].value;
+    const m2Last = result.m2[result.m2.length - 1].value;
+    const spFirst = result.sp500tr[0].value;
+    const spLast = result.sp500tr[result.sp500tr.length - 1].value;
+
+    result.m2Growth = ((m2Last - m2First) / m2First * 100).toFixed(1);
+    result.sp500Growth = ((spLast - spFirst) / spFirst * 100).toFixed(1);
+    result.m2Latest = m2Last;
+    result.m2LatestDate = result.m2[result.m2.length - 1].date;
+    result.sp500Latest = spLast;
+
+    const m2Yoy = result.m2.length >= 13
+      ? ((m2Last - result.m2[result.m2.length - 13].value) / result.m2[result.m2.length - 13].value * 100).toFixed(1)
+      : null;
+    result.m2YoY = m2Yoy;
+
+    console.log(`  💵 M2: $${(m2Last / 1000).toFixed(1)}T (${result.m2Growth}% 5y) | S&P TR: ${result.sp500Growth}% 5y | M2 YoY: ${m2Yoy}%`);
+  }
+
+  return result;
+}
+
 // ========== LIVE FEED ==========
 function buildLiveFeed(state) {
   const feed = [];
@@ -2534,59 +2620,6 @@ function buildLiveFeed(state) {
           forum: FORUMS[id]?.name || id,
           time: state.lastCheck,
           category: 'price'
-        });
-      }
-    }
-  }
-  
-  // Add Nansen top transactions (sells, buys, transfers)
-  if (state.nansen) {
-    for (const [id, tokenData] of Object.entries(state.nansen)) {
-      const symbol = FORUMS[id]?.symbol || id.toUpperCase();
-      const icon = FORUMS[id]?.icon || '🪙';
-      
-      // Top sells
-      if (tokenData.sells && tokenData.sells.length > 0) {
-        tokenData.sells.slice(0, 1).forEach(s => {
-          feed.push({
-            type: 'nansen_sell',
-            icon: '📉',
-            title: `${symbol} Prodej: $${(s.value_usd || 0).toLocaleString()}`,
-            subtitle: `${s.label || s.address?.slice(0, 10)} prodal ${s.amount?.toFixed(1)} ${symbol}`,
-            link: s.tx_hash ? `https://etherscan.io/tx/${s.tx_hash}` : null,
-            time: s.timestamp || tokenData.updated,
-            category: 'nansen'
-          });
-        });
-      }
-      
-      // Top buys
-      if (tokenData.buys && tokenData.buys.length > 0) {
-        tokenData.buys.slice(0, 1).forEach(b => {
-          feed.push({
-            type: 'nansen_buy',
-            icon: '📈',
-            title: `${symbol} Nákup: $${(b.value_usd || 0).toLocaleString()}`,
-            subtitle: `${b.label || b.address?.slice(0, 10)} koupil ${b.amount?.toFixed(1)} ${symbol}`,
-            link: b.tx_hash ? `https://etherscan.io/tx/${b.tx_hash}` : null,
-            time: b.timestamp || tokenData.updated,
-            category: 'nansen'
-          });
-        });
-      }
-      
-      // Top transfers
-      if (tokenData.transfers && tokenData.transfers.length > 0) {
-        tokenData.transfers.slice(0, 1).forEach(t => {
-          feed.push({
-            type: 'nansen_transfer',
-            icon: '🔄',
-            title: `${symbol} Transfer: $${(t.value_usd || 0).toLocaleString()}`,
-            subtitle: `${t.from_label || t.from_address?.slice(0, 8)} → ${t.to_label || t.to_address?.slice(0, 8)}`,
-            link: t.tx_hash ? `https://etherscan.io/tx/${t.tx_hash}` : null,
-            time: t.timestamp || tokenData.updated,
-            category: 'nansen'
-          });
         });
       }
     }
@@ -2836,13 +2869,6 @@ async function checkAll() {
     state.lastSummary = now.toISOString();
   }
 
-  // Fetch Nansen data every 10 minutes
-  const lastNansenTime = state.lastNansen ? new Date(state.lastNansen).getTime() : 0;
-  if (now.getTime() - lastNansenTime > NANSEN_INTERVAL || !state.lastNansen) {
-    state.nansen = await fetchAllTokenData();
-    state.lastNansen = now.toISOString();
-  }
-
   // Fetch Snapshot proposals every 5 minutes
   const SNAPSHOT_INTERVAL = 5 * 60 * 1000;
   const lastSnapshotTime = state.lastSnapshot ? new Date(state.lastSnapshot).getTime() : 0;
@@ -2898,6 +2924,16 @@ async function checkAll() {
     }
   }
 
+  // Fetch M2 Money Supply & S&P 500 TR daily
+  const lastM2Time = state.lastM2 ? new Date(state.lastM2).getTime() : 0;
+  if (now.getTime() - lastM2Time > M2_INTERVAL || !state.lastM2) {
+    const m2Data = await fetchM2AndSP500();
+    if (m2Data && (m2Data.m2.length > 0 || m2Data.sp500tr.length > 0)) {
+      state.m2sp500 = m2Data;
+      state.lastM2 = now.toISOString();
+    }
+  }
+
   state.lastCheck = now.toISOString();
   state.activity = (state.activity || []).slice(0, 100);
   
@@ -2927,7 +2963,6 @@ async function checkAll() {
       prices: state.prices, 
       activity: state.activity, 
       summaries: state.summaries, 
-      nansen: state.nansen,
       snapshot: state.snapshot,
       xtb: state.xtb,
       fisher: state.fisher,
@@ -2936,9 +2971,9 @@ async function checkAll() {
       liveFeed: state.liveFeed,
       marketOverview: state.marketOverview,
       tokenEthHistory: state.tokenEthHistory,
+      m2sp500: state.m2sp500,
       lastCheck: state.lastCheck, 
       lastSummary: state.lastSummary,
-      lastNansen: state.lastNansen,
       lastSnapshot: state.lastSnapshot,
       lastXtb: state.lastXtb,
       lastFisher: state.lastFisher,
@@ -2970,11 +3005,10 @@ async function checkAll() {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-console.log('🚀 Multi-Forum Monitor with AI + Nansen');
+console.log('🚀 Multi-Forum Monitor with AI');
 console.log('📡 Forums:', Object.values(FORUMS).map(f => f.name).join(', '));
 console.log('💰 Tokens:', Object.values(FORUMS).map(f => f.symbol).join(', '));
 console.log(`🤖 Gemini: ${GEMINI_API_KEY ? 'ON' : 'OFF'}`);
-console.log(`📊 Nansen: ${NANSEN_API_KEY ? 'ON' : 'OFF'}`);
 console.log(`📈 Dashboard: ${DASHBOARD_URL}`);
 console.log(`📱 Telegram: ${TELEGRAM_BOT_TOKEN ? 'ON' : 'OFF'}`);
 
