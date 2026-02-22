@@ -440,21 +440,16 @@ app.get('/', (req, res) => {
   // ============ SECTION: Live Feed ============
   const liveFeed = data.liveFeed || [];
   const feedHtml = `
-    <div class="section-card" data-section="feed">
-      <div class="section-summary" onclick="toggleSection('feed')">
+    <div class="section-card open" data-section="feed">
+      <div class="section-summary feed-sidebar-header">
         <div class="section-icon">📡</div>
         <div class="section-info">
-          <div class="section-title">Live Feed <span class="badge live">LIVE</span></div>
-          <div class="section-stats">
-            <span class="stat">${liveFeed.length} events</span>
-            <span class="stat preview">${escapeHtml(liveFeed[0]?.title?.substring(0, 40) || 'No events')}...</span>
-          </div>
+          <div class="section-title">Activity <span class="badge live">LIVE</span> <span class="badge">${liveFeed.length}</span></div>
         </div>
-        <div class="section-right"><span class="expand-icon">▼</span></div>
       </div>
       <div class="section-details">
         <div class="feed-list">
-          ${liveFeed.slice(0, 20).map(item => {
+          ${liveFeed.slice(0, 30).map(item => {
             const catClass = item.category || 'forum';
             return `
             <a href="${escapeHtml(item.link || item.url || '#')}" target="_blank" class="feed-item ${catClass}">
@@ -476,7 +471,16 @@ app.get('/', (req, res) => {
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0a0a;--card:#111;--border:#222;--t:#fff;--t2:#999;--t3:#666;--g:#22c55e;--r:#ef4444;--b:#3b82f6;--p:#a855f7;--y:#f59e0b}
 body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--t);padding:16px;min-height:100vh}
-.container{max-width:1400px;margin:0 auto}
+.container{max-width:1600px;margin:0 auto}
+
+/* 3-Column Layout */
+.dashboard-grid{display:grid;grid-template-columns:1fr 1fr 340px;gap:16px}
+.col-left,.col-mid{display:flex;flex-direction:column;gap:12px;min-width:0}
+.dashboard-grid .section-card{margin-bottom:0}
+.col-right{display:flex;flex-direction:column;gap:12px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 100px)}
+.col-right .section-card{margin-bottom:0}
+.col-right .section-details{display:block!important}
+.col-right .feed-list{max-height:calc(100vh - 200px)}
 
 /* Header */
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:12px 16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
@@ -600,6 +604,8 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .eth-sub{font-style:normal;font-size:10px;color:var(--p);margin-left:4px}
 
 /* Feed */
+.feed-sidebar-header{cursor:default;border-bottom:1px solid var(--border)}
+.feed-sidebar-header:hover{background:transparent}
 .feed-list{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:400px;overflow-y:auto}
 .feed-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0a0a0a;border-radius:8px;text-decoration:none;color:var(--t);transition:background 0.2s;border-left:3px solid var(--border)}
 .feed-item:hover{background:#1a1a1a}
@@ -631,7 +637,13 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .view-list .section-stats{font-size:11px}
 
 /* Responsive */
+@media(max-width:1200px){
+  .dashboard-grid{grid-template-columns:1fr 1fr;gap:12px}
+  .col-right{position:static;max-height:none;grid-column:1/-1}
+  .col-right .feed-list{max-height:400px}
+}
 @media(max-width:768px){
+  .dashboard-grid{grid-template-columns:1fr}
   .section-stats .preview{display:none}
   .stock-grid{grid-template-columns:repeat(2,1fr)}
   .forums-grid{grid-template-columns:1fr}
@@ -654,12 +666,20 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
   
   <div id="content" class="view-compact">
     ${marketHtml}
-    ${watchlistHtml}
-    ${xtbHtml}
-    ${fisherHtml}
-    ${liquityHtml}
-    ${forumsHtml}
-    ${feedHtml}
+    <div class="dashboard-grid">
+      <div class="col-left">
+        ${watchlistHtml}
+        ${xtbHtml}
+        ${fisherHtml}
+      </div>
+      <div class="col-mid">
+        ${liquityHtml}
+        ${forumsHtml}
+      </div>
+      <div class="col-right">
+        ${feedHtml}
+      </div>
+    </div>
   </div>
 </div>
 
