@@ -2507,12 +2507,15 @@ async function fetchM2AndSP500() {
   console.log('💵 Fetching M2 Money Supply & S&P 500 TR...');
   const result = { m2: [], sp500tr: [], updated: new Date().toISOString() };
 
-  // M2 Money Supply from FRED (monthly, seasonally adjusted, last 5 years)
-  if (FRED_API_KEY) {
-    try {
-      const startDate = new Date();
-      startDate.setFullYear(startDate.getFullYear() - 5);
-      const start = startDate.toISOString().split('T')[0];
+  // M2 Money Supply from FRED (public CSV endpoint, no API key needed)
+  try {
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 5);
+    const start = startDate.toISOString().split('T')[0];
+
+    let m2Fetched = false;
+    // Try API first if key available
+    if (FRED_API_KEY) {
       const url = `https://api.stlouisfed.org/fred/series/observations?series_id=M2SL&api_key=${FRED_API_KEY}&file_type=json&observation_start=${start}&frequency=m`;
       const res = await fetchJSON(url);
       if (res.status === 200) {
@@ -2520,12 +2523,23 @@ async function fetchM2AndSP500() {
         result.m2 = (data.observations || [])
           .filter(o => o.value !== '.')
           .map(o => ({ date: o.date, value: parseFloat(o.value) }));
-        console.log(`  📊 M2: ${result.m2.length} monthly data points`);
+        m2Fetched = result.m2.length > 0;
       }
-    } catch (e) { console.error('❌ M2 fetch error:', e.message); }
-  } else {
-    console.log('  ⚠️ FRED_API_KEY not set, skipping M2');
-  }
+    }
+
+    // Fallback: public CSV (no key needed)
+    if (!m2Fetched) {
+      const csvUrl = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL&cosd=${start}&fq=Monthly`;
+      const csvRes = await fetchJSON(csvUrl);
+      if (csvRes.status === 200) {
+        const lines = csvRes.body.trim().split('\n').slice(1);
+        result.m2 = lines
+          .map(line => { const [date, val] = line.split(','); return { date, value: parseFloat(val) }; })
+          .filter(p => !isNaN(p.value));
+      }
+    }
+    console.log(`  📊 M2: ${result.m2.length} monthly data points`);
+  } catch (e) { console.error('❌ M2 fetch error:', e.message); }
 
   // S&P 500 Total Return from Yahoo Finance (last 5 years, monthly)
   try {
