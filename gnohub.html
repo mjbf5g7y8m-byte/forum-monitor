@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GnoHub — Celý Gnosis ekosystém na jednom místě</title>
+<style>
+  :root {
+    --gno-green: #3e6957;
+    --gno-green-light: #4a7d68;
+    --gno-green-dark: #2d4f40;
+    --gno-emerald: #10b981;
+    --gno-teal: #0d9488;
+    --gno-bg: #0a0f0d;
+    --gno-surface: #111916;
+    --gno-surface-2: #1a2420;
+    --gno-surface-3: #243330;
+    --gno-border: #2a3a35;
+    --gno-text: #e8f0ec;
+    --gno-text-muted: #8fa99e;
+    --gno-accent: #34d399;
+    --gno-gold: #f59e0b;
+    --gno-blue: #3b82f6;
+    --gno-purple: #8b5cf6;
+    --gno-red: #ef4444;
+    --gno-pink: #ec4899;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gno-bg);
+    color: var(--gno-text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--gno-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--gno-border); border-radius: 3px; }
+
+  /* ===== HEADER / NAV ===== */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10, 15, 13, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--gno-border);
+    padding: 0 2rem;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1.4rem; font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .nav-logo .owl {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gno-emerald), var(--gno-teal));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  .nav-links {
+    display: flex; gap: 6px; list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--gno-text-muted);
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: var(--radius-xs);
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .nav-links a:hover, .nav-links a.active {
+    color: var(--gno-text);
+    background: var(--gno-surface-2);
+  }
+
+  .nav-right {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .nav-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; color: var(--gno-emerald);
+  }
+
+  .nav-status .dot {
+    width: 7px; height: 7px;
+    background: var(--gno-emerald);
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gno-emerald), var(--gno-teal));
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 30px rgba(16, 185, 129, 0.35);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--gno-text);
+    border: 1px solid var(--gno-border);
+  }
+
+  .btn-ghost:hover {
+    background: var(--gno-surface-2);
+    border-color: var(--gno-text-muted);
+  }
+
+  .btn-sm {
+    padding: 7px 14px;
+    font-size: 0.82rem;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    padding: 160px 2rem 100px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(ellipse, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px;
+    background: var(--gno-surface-2);
+    border: 1px solid var(--gno-border);
+    border-radius: 100px;
+    font-size: 0.82rem;
+    color: var(--gno-emerald);
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.8rem, 6vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--gno-emerald), var(--gno-teal), var(--gno-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--gno-text-muted);
+    max-width: 640px;
+    margin: 0 auto 36px;
+    line-height: 1.7;
+  }
+
+  .hero-actions {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+
+  .hero-stats {
+    display: flex; gap: 48px; justify-content: center;
+    margin-top: 64px;
+    padding-top: 40px;
+    border-top: 1px solid var(--gno-border);
+  }
+
+  .hero-stat {
+    text-align: center;
+  }
+
+  .hero-stat .val {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--gno-accent);
+  }
+
+  .hero-stat .label {
+    font-size: 0.82rem;
+    color: var(--gno-text-muted);
+    margin-top: 4px;
+  }
+
+  /* ===== SECTIONS ===== */
+  section {
+    padding: 80px 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .section-header h2 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+
+  .section-header p {
+    color: var(--gno-text-muted);
+    font-size: 1.05rem;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  /* ===== ONBOARDING FLOW ===== */
+  #onboarding {
+    padding-top: 0;
+  }
+
+  .onboard-flow {
+    display: flex;
+    gap: 0;
+    position: relative;
+    justify-content: center;
+    margin-top: 48px;
+  }
+
+  .onboard-step {
+    flex: 0 0 240px;
+    text-align: center;
+    position: relative;
+    padding: 0 16px;
+  }
+
+  .onboard-step::after {
+    content: '';
+    position: absolute;
+    top: 28px;
+    right: -20px;
+    width: 40px;
+    height: 2px;
+    background: var(--gno-border);
+  }
+
+  .onboard-step:last-child::after { display: none; }
+
+  .step-num {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin: 0 auto 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-1 .step-num { background: linear-gradient(135deg, var(--gno-emerald), var(--gno-teal)); color: #fff; }
+  .step-2 .step-num { background: linear-gradient(135deg, var(--gno-blue), var(--gno-purple)); color: #fff; }
+  .step-3 .step-num { background: linear-gradient(135deg, var(--gno-gold), #f97316); color: #fff; }
+  .step-4 .step-num { background: linear-gradient(135deg, var(--gno-pink), var(--gno-red)); color: #fff; }
+
+  .onboard-step h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .onboard-step p {
+    font-size: 0.85rem;
+    color: var(--gno-text-muted);
+    line-height: 1.5;
+  }
+
+  /* ===== PRODUCT GRID ===== */
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  .product-card {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .product-card:hover {
+    border-color: var(--gno-emerald);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(16, 185, 129, 0.08);
+  }
+
+  .product-card .card-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .product-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .badge-live {
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .badge-live.green { background: rgba(16, 185, 129, 0.15); color: var(--gno-emerald); }
+  .badge-live.blue { background: rgba(59, 130, 246, 0.15); color: var(--gno-blue); }
+  .badge-live.gold { background: rgba(245, 158, 11, 0.15); color: var(--gno-gold); }
+  .badge-live.purple { background: rgba(139, 92, 246, 0.15); color: var(--gno-purple); }
+  .badge-live.pink { background: rgba(236, 72, 153, 0.15); color: var(--gno-pink); }
+
+  .product-card h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .product-card .desc {
+    font-size: 0.9rem;
+    color: var(--gno-text-muted);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .product-features {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .feature-tag {
+    padding: 4px 10px;
+    background: var(--gno-surface-2);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    color: var(--gno-text-muted);
+    font-weight: 500;
+  }
+
+  .product-card .card-actions {
+    display: flex; gap: 8px;
+  }
+
+  /* ===== FEATURED / SAFE + COW ===== */
+  .featured-duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .featured-card {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius);
+    padding: 36px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .featured-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .featured-card.safe::after { background: var(--gno-emerald); }
+  .featured-card.cow::after { background: var(--gno-purple); }
+
+  .featured-card .card-top {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .featured-card h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+
+  .featured-card .desc {
+    color: var(--gno-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+
+  .quick-action-box {
+    background: var(--gno-surface-2);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .quick-action-box h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .quick-action-box h4 .flash { color: var(--gno-gold); }
+
+  .input-row {
+    display: flex; gap: 8px;
+  }
+
+  .input-row input, .input-row select {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-xs);
+    color: var(--gno-text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-row input:focus, .input-row select:focus {
+    border-color: var(--gno-emerald);
+  }
+
+  .input-row select {
+    flex: 0 0 100px;
+    cursor: pointer;
+  }
+
+  .swap-row {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .swap-input {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-xs);
+    padding: 10px 14px;
+  }
+
+  .swap-input input {
+    flex: 1; background: none; border: none; color: var(--gno-text);
+    font-size: 1.1rem; font-weight: 600; outline: none;
+  }
+
+  .swap-input .token-badge {
+    padding: 4px 10px;
+    background: var(--gno-surface-3);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .swap-arrow {
+    text-align: center;
+    color: var(--gno-text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  .swap-arrow:hover { transform: rotate(180deg); }
+
+  .swap-info {
+    display: flex; justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--gno-text-muted);
+    margin-top: 8px;
+  }
+
+  /* ===== LIVE DASHBOARD ===== */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .dash-card {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+  }
+
+  .dash-card .label {
+    font-size: 0.78rem;
+    color: var(--gno-text-muted);
+    font-weight: 500;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .dash-card .value {
+    font-size: 1.6rem;
+    font-weight: 800;
+  }
+
+  .dash-card .change {
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .change.up { color: var(--gno-emerald); }
+  .change.down { color: var(--gno-red); }
+
+  .activity-feed {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .feed-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gno-border);
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .feed-tabs {
+    display: flex; gap: 4px;
+  }
+
+  .feed-tab {
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--gno-text-muted);
+    transition: all 0.2s;
+    border: none;
+    background: none;
+  }
+
+  .feed-tab.active {
+    background: var(--gno-surface-3);
+    color: var(--gno-text);
+  }
+
+  .feed-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(42, 58, 53, 0.5);
+    transition: background 0.15s;
+  }
+
+  .feed-item:hover { background: var(--gno-surface-2); }
+  .feed-item:last-child { border-bottom: none; }
+
+  .feed-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .feed-item .feed-text {
+    flex: 1;
+  }
+
+  .feed-item .feed-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .feed-item .feed-sub {
+    font-size: 0.78rem;
+    color: var(--gno-text-muted);
+  }
+
+  .feed-item .feed-time {
+    font-size: 0.75rem;
+    color: var(--gno-text-muted);
+    white-space: nowrap;
+  }
+
+  /* ===== ECOSYSTEM MAP ===== */
+  .eco-map {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .eco-card {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .eco-card:hover {
+    border-color: var(--gno-text-muted);
+    transform: translateY(-1px);
+  }
+
+  .eco-card .eco-top {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .eco-card .eco-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+  }
+
+  .eco-card h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .eco-card p {
+    font-size: 0.82rem;
+    color: var(--gno-text-muted);
+    line-height: 1.5;
+  }
+
+  .eco-card .eco-status {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 100px;
+  }
+
+  .eco-status.live { background: rgba(16, 185, 129, 0.12); color: var(--gno-emerald); }
+  .eco-status.soon { background: rgba(245, 158, 11, 0.12); color: var(--gno-gold); }
+
+  /* ===== PHILOSOPHY SECTION ===== */
+  .philosophy {
+    text-align: center;
+    padding: 100px 2rem;
+    position: relative;
+  }
+
+  .philosophy::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .manifesto {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .manifesto blockquote {
+    font-size: 1.3rem;
+    font-weight: 600;
+    line-height: 1.7;
+    color: var(--gno-text);
+    font-style: italic;
+    margin-bottom: 24px;
+    position: relative;
+    padding-left: 24px;
+    border-left: 3px solid var(--gno-emerald);
+    text-align: left;
+  }
+
+  .manifesto-points {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+    text-align: left;
+  }
+
+  .manifesto-point {
+    padding: 24px;
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .manifesto-point h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .manifesto-point p {
+    font-size: 0.85rem;
+    color: var(--gno-text-muted);
+    line-height: 1.6;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    border-top: 1px solid var(--gno-border);
+    padding: 48px 2rem 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr);
+    gap: 40px;
+    margin-bottom: 40px;
+  }
+
+  .footer-brand p {
+    color: var(--gno-text-muted);
+    font-size: 0.88rem;
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  .footer-col h5 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gno-text-muted);
+    margin-bottom: 14px;
+  }
+
+  .footer-col a {
+    display: block;
+    color: var(--gno-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    padding: 4px 0;
+    transition: color 0.15s;
+  }
+
+  .footer-col a:hover { color: var(--gno-emerald); }
+
+  .footer-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 24px;
+    border-top: 1px solid var(--gno-border);
+    font-size: 0.8rem;
+    color: var(--gno-text-muted);
+  }
+
+  /* ===== MODALS ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--gno-surface);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius);
+    padding: 36px;
+    max-width: 480px;
+    width: 90%;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none; color: var(--gno-text-muted);
+    font-size: 1.2rem; cursor: pointer;
+  }
+
+  .modal h3 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .modal p {
+    color: var(--gno-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+
+  .modal .input-group {
+    margin-bottom: 16px;
+  }
+
+  .modal label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--gno-text-muted);
+  }
+
+  .modal input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--gno-surface-2);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-xs);
+    color: var(--gno-text);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .modal input:focus { border-color: var(--gno-emerald); }
+
+  .modal .divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 20px 0;
+    color: var(--gno-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .modal .divider::before, .modal .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--gno-border);
+  }
+
+  .wallet-options {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .wallet-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--gno-surface-2);
+    border: 1px solid var(--gno-border);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--gno-text);
+  }
+
+  .wallet-option:hover {
+    border-color: var(--gno-emerald);
+    background: var(--gno-surface-3);
+  }
+
+  .wallet-option .wo-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== NOTIFICATION TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--gno-surface-2);
+    border: 1px solid var(--gno-emerald);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    z-index: 300;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .featured-duo { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+    .eco-map { grid-template-columns: repeat(2, 1fr); }
+    .manifesto-points { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-stats { flex-wrap: wrap; gap: 24px; }
+    .onboard-flow { flex-wrap: wrap; }
+    .onboard-step::after { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .nav-links { display: none; }
+    .product-grid { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .eco-map { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ===== ANIMATION ===== */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="owl">🦉</div>
+    <span>Gno<span style="color: var(--gno-emerald)">Hub</span></span>
+  </div>
+  <ul class="nav-links">
+    <a href="#products" class="active">Produkty</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#ecosystem">Ekosystém</a>
+    <a href="#philosophy">Proč Gnosis</a>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-status">
+      <span class="dot"></span>
+      Gnosis Chain živě
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('login')">Přihlásit se</button>
+    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Začít teď</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-badge">
+    <span class="dot" style="width:6px;height:6px;background:var(--gno-emerald);border-radius:50%;display:inline-block;"></span>
+    Gnosis Chain blok #42,847,291 právě potvrzen
+  </div>
+  <h1>
+    Jeden účet.<br>
+    <span class="gradient">Celý Gnosis svět.</span>
+  </h1>
+  <p>
+    Safe peněženka, CoW Swap, Gnosis Pay karta, Circles UBI, EURe stablecoin — všechno na jednom místě.
+    Žádný bullshit. Fungující technologie pro skutečný svět.
+  </p>
+  <div class="hero-actions">
+    <button class="btn btn-primary" onclick="openModal('register')">
+      <span>🔓</span> Registrovat se zdarma
+    </button>
+    <button class="btn btn-ghost" onclick="scrollTo('#products')">
+      Prozkoumat ekosystém →
+    </button>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="val">$2.1B</div>
+      <div class="label">TVL na Gnosis Chain</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">98M+</div>
+      <div class="label">Safe transakcí</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">200K+</div>
+      <div class="label">Aktivních Safe peněženek</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">5s / $0.001</div>
+      <div class="label">Čas bloku / Avg. fee</div>
+    </div>
+  </div>
+</header>
+
+<!-- ONBOARDING -->
+<section id="onboarding">
+  <div class="section-header">
+    <span class="section-tag" style="background: rgba(16,185,129,0.12); color: var(--gno-emerald);">Jak to funguje</span>
+    <h2>Jedna registrace, všechno odemčeno</h2>
+    <p>Od nuly k plnému ekosystému za 2 minuty. Žádné komplikace.</p>
+  </div>
+  <div class="onboard-flow">
+    <div class="onboard-step step-1 fade-in">
+      <div class="step-num">1</div>
+      <h4>Registrace</h4>
+      <p>Email nebo připojení peněženky. Jeden účet pro celý Gnosis.</p>
+    </div>
+    <div class="onboard-step step-2 fade-in">
+      <div class="step-num">2</div>
+      <h4>Safe peněženka</h4>
+      <p>Automaticky ti vytvoříme Smart Account. Multi-sig, recovery, gasless.</p>
+    </div>
+    <div class="onboard-step step-3 fade-in">
+      <div class="step-num">3</div>
+      <h4>Používej cokoliv</h4>
+      <p>CoW Swap, Gnosis Pay, Circles, staking — vše propojené a dostupné.</p>
+    </div>
+    <div class="onboard-step step-4 fade-in">
+      <div class="step-num">4</div>
+      <h4>Platby v reálu</h4>
+      <p>Gnosis Pay Visa karta. Utrácej krypto v jakémkoliv obchodě.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED PRODUCTS -->
+<section id="products">
+  <div class="section-header">
+    <span class="section-tag" style="background: rgba(59,130,246,0.12); color: var(--gno-blue);">Hlavní produkty</span>
+    <h2>Nástroje, které fungují. Teď.</h2>
+    <p>Žádné testnet demo. Tohle jsou produkční produkty s miliardami v TVL.</p>
+  </div>
+
+  <!-- SAFE + COW SWAP featured -->
+  <div class="featured-duo fade-in">
+    <!-- SAFE -->
+    <div class="featured-card safe">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-emerald), var(--gno-teal));">🔐</div>
+        <div>
+          <h3>Safe{Wallet}</h3>
+          <span class="badge-live green">Použij přímo</span>
+        </div>
+      </div>
+      <p class="desc">
+        Nejbezpečnější smart contract peněženka na světě. Multi-sig, social recovery,
+        gasless transakce, modulární architektura. Spravuje přes $100B across all chains.
+      </p>
+      <div class="quick-action-box">
+        <h4><span class="flash">⚡</span> Rychlé založení Safe</h4>
+        <div class="input-row">
+          <input type="text" placeholder="Pojmenuj svůj Safe (např. Můj vault)" id="safe-name">
+          <select id="safe-chain">
+            <option>Gnosis</option>
+            <option>Ethereum</option>
+            <option>Polygon</option>
+            <option>Arbitrum</option>
+          </select>
+        </div>
+        <div style="margin-top: 10px;">
+          <div style="font-size: 0.78rem; color: var(--gno-text-muted); margin-bottom: 8px;">
+            Threshold: <strong style="color: var(--gno-text);">1 z 1</strong> vlastníků (upravíš později)
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="createSafe()" style="width:100%;">Vytvořit Safe →</button>
+        </div>
+      </div>
+      <div class="product-features">
+        <span class="feature-tag">Multi-sig</span>
+        <span class="feature-tag">Gasless</span>
+        <span class="feature-tag">Social Recovery</span>
+        <span class="feature-tag">Modulární</span>
+        <span class="feature-tag">ERC-4337</span>
+      </div>
+    </div>
+
+    <!-- COW SWAP -->
+    <div class="featured-card cow">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-purple), #6366f1);">🐄</div>
+        <div>
+          <h3>CoW Swap</h3>
+          <span class="badge-live purple">Swapni teď</span>
+        </div>
+      </div>
+      <p class="desc">
+        DEX agregátor s MEV ochranou. Batch aukce, peer-to-peer matching,
+        surplus ti vrátí zpět. Nejlepší ceny, nula MEV.
+      </p>
+      <div class="quick-action-box">
+        <h4><span class="flash">⚡</span> Rychlý swap</h4>
+        <div class="swap-row">
+          <div class="swap-input">
+            <input type="number" placeholder="0.0" value="100" id="swap-amount-in">
+            <div class="token-badge" id="token-from">xDAI</div>
+          </div>
+          <div class="swap-arrow" onclick="swapTokens()">↕</div>
+          <div class="swap-input">
+            <input type="number" placeholder="0.0" value="98.47" id="swap-amount-out" readonly>
+            <div class="token-badge" id="token-to">EURe</div>
+          </div>
+          <div class="swap-info">
+            <span>Rate: 1 xDAI = 0.9847 EURe</span>
+            <span style="color: var(--gno-emerald);">MEV ochrana ✓</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="executeSwap()" style="width:100%; margin-top: 12px;">Swapnout přes CoW →</button>
+      </div>
+      <div class="product-features">
+        <span class="feature-tag">MEV ochrana</span>
+        <span class="feature-tag">Batch aukce</span>
+        <span class="feature-tag">Gasless ordery</span>
+        <span class="feature-tag">Surplus refund</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OTHER PRODUCTS -->
+  <div class="product-grid fade-in">
+    <!-- GNOSIS PAY -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-gold), #f97316);">💳</div>
+        <span class="badge-live gold">Objednat kartu</span>
+      </div>
+      <h3>Gnosis Pay</h3>
+      <p class="desc">
+        Visa karta propojená přímo s tvým Safe. Utrácej krypto v jakémkoliv obchodě
+        na světě — bez prostředníků, bez konverzních poplatků, instant settlement on-chain.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">Visa síť</span>
+        <span class="feature-tag">On-chain settlement</span>
+        <span class="feature-tag">EURe / GBP</span>
+        <span class="feature-tag">Apple Pay</span>
+        <span class="feature-tag">Self-custodial</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Objednat kartu</button>
+        <button class="btn btn-ghost btn-sm">Více info</button>
+      </div>
+    </div>
+
+    <!-- CIRCLES -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-pink), #a855f7);">🔵</div>
+        <span class="badge-live pink">Aktivovat UBI</span>
+      </div>
+      <h3>Circles</h3>
+      <p class="desc">
+        Decentralizovaný Universal Basic Income. Každý uživatel mintuje svou vlastní
+        měnu, důvěra mezi lidmi vytváří síť hodnoty. Fair money pro komunity.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">UBI</span>
+        <span class="feature-tag">Web of Trust</span>
+        <span class="feature-tag">Personal Currency</span>
+        <span class="feature-tag">Community</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Aktivovat Circles</button>
+        <button class="btn btn-ghost btn-sm">Jak to funguje</button>
+      </div>
+    </div>
+
+    <!-- EURe -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-blue), #0ea5e9);">€</div>
+        <span class="badge-live blue">Koupit EURe</span>
+      </div>
+      <h3>EURe Stablecoin</h3>
+      <p class="desc">
+        Regulovaný Euro stablecoin od Monerium. Plně krytý, MiCA-compliant,
+        IBAN propojení. Spojení tradičních financí s DeFi — bez kompromisů.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">1:1 EUR</span>
+        <span class="feature-tag">MiCA regulace</span>
+        <span class="feature-tag">IBAN</span>
+        <span class="feature-tag">SEPA převody</span>
+        <span class="feature-tag">Monerium</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Získat EURe</button>
+        <button class="btn btn-ghost btn-sm">IBAN setup</button>
+      </div>
+    </div>
+
+    <!-- GNOSIS CHAIN -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, var(--gno-green-light), var(--gno-teal));">⛓️</div>
+        <span class="badge-live green">Živě</span>
+      </div>
+      <h3>Gnosis Chain</h3>
+      <p class="desc">
+        Community-owned EVM chain. 5s bloky, $0.001 transakce, 200K+ validátorů.
+        Decentralizovanější než většina L1. Reálné použití, ne spekulace.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">EVM</span>
+        <span class="feature-tag">5s bloky</span>
+        <span class="feature-tag">PoS</span>
+        <span class="feature-tag">200K validátorů</span>
+        <span class="feature-tag">xDAI</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Explorer</button>
+        <button class="btn btn-ghost btn-sm">Validátor info</button>
+      </div>
+    </div>
+
+    <!-- STAKING -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, #22c55e, var(--gno-emerald));">📈</div>
+        <span class="badge-live green">Stakovat</span>
+      </div>
+      <h3>GNO Staking</h3>
+      <p class="desc">
+        Stakuj GNO a validuj Gnosis Chain. 1 GNO = validátor (vs 32 ETH na Ethereu).
+        Liquid staking přes StakeWise, sGNO token. Zabezpeč síť a vydělávej.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">1 GNO = validátor</span>
+        <span class="feature-tag">Liquid staking</span>
+        <span class="feature-tag">sGNO</span>
+        <span class="feature-tag">~15% APY</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Začít stakovat</button>
+        <button class="btn btn-ghost btn-sm">Kalkulačka</button>
+      </div>
+    </div>
+
+    <!-- HASHI BRIDGE -->
+    <div class="product-card">
+      <div class="card-top">
+        <div class="product-icon" style="background: linear-gradient(135deg, #f472b6, #e879f9);">🌉</div>
+        <span class="badge-live pink">Bridge</span>
+      </div>
+      <h3>Hashi Bridge</h3>
+      <p class="desc">
+        Cross-chain bridge agregátor. Přesouvej assety mezi Gnosis, Ethereum, Arbitrum
+        a dalšími chainy bezpečně. Multi-oracle ověřování pro maximální bezpečnost.
+      </p>
+      <div class="product-features">
+        <span class="feature-tag">Multi-chain</span>
+        <span class="feature-tag">Multi-oracle</span>
+        <span class="feature-tag">Trustless</span>
+        <span class="feature-tag">Agregátor</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm">Bridgovat</button>
+        <button class="btn btn-ghost btn-sm">Podporované chainy</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE DASHBOARD -->
+<section id="dashboard">
+  <div class="section-header">
+    <span class="section-tag" style="background: rgba(245,158,11,0.12); color: var(--gno-gold);">Live data</span>
+    <h2>Co se právě děje na Gnosisu</h2>
+    <p>Real-time metriky celého ekosystému. Transparentní, on-chain, ověřitelné.</p>
+  </div>
+
+  <div class="dashboard-grid fade-in">
+    <div class="dash-card">
+      <div class="label">📊 TVL celkem</div>
+      <div class="value" style="color: var(--gno-emerald);">$2.14B</div>
+      <div class="change up">↑ 12.4% za 30d</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">🔄 CoW Volume 24h</div>
+      <div class="value">$847M</div>
+      <div class="change up">↑ 8.2% vs včera</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">💳 Gnosis Pay txn 24h</div>
+      <div class="value">14,291</div>
+      <div class="change up">↑ 23.1% za týden</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">⛓️ Gnosis Chain TPS</div>
+      <div class="value">24.7</div>
+      <div class="change">avg. za posledních 100 bloků</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">🔵 Circles uživatelé</div>
+      <div class="value">289K</div>
+      <div class="change up">↑ 2.1K tento týden</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">💶 EURe Supply</div>
+      <div class="value">€128M</div>
+      <div class="change up">↑ 4.7% za 30d</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">🏦 GNO Cena</div>
+      <div class="value">$287</div>
+      <div class="change up">↑ 3.2% 24h</div>
+    </div>
+    <div class="dash-card">
+      <div class="label">✅ Validátoři</div>
+      <div class="value">204K</div>
+      <div class="change">99.97% uptime</div>
+    </div>
+  </div>
+
+  <!-- Activity Feed -->
+  <div class="activity-feed fade-in">
+    <div class="feed-header">
+      <span>Živá aktivita ekosystému</span>
+      <div class="feed-tabs">
+        <button class="feed-tab active" onclick="switchFeed(this, 'all')">Vše</button>
+        <button class="feed-tab" onclick="switchFeed(this, 'safe')">Safe</button>
+        <button class="feed-tab" onclick="switchFeed(this, 'cow')">CoW</button>
+        <button class="feed-tab" onclick="switchFeed(this, 'pay')">Pay</button>
+        <button class="feed-tab" onclick="switchFeed(this, 'chain')">Chain</button>
+      </div>
+    </div>
+
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(16,185,129,0.15);">🔐</div>
+      <div class="feed-text">
+        <div class="feed-title">Nový Safe vytvořen (3/5 multi-sig)</div>
+        <div class="feed-sub">0x7a3f...e2c1 · Gnosis Chain</div>
+      </div>
+      <div class="feed-time">před 12s</div>
+    </div>
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(139,92,246,0.15);">🐄</div>
+      <div class="feed-text">
+        <div class="feed-title">CoW Swap: 50,000 xDAI → 49,234 EURe</div>
+        <div class="feed-sub">Surplus: +€12.40 vráceno uživateli</div>
+      </div>
+      <div class="feed-time">před 28s</div>
+    </div>
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(245,158,11,0.15);">💳</div>
+      <div class="feed-text">
+        <div class="feed-title">Gnosis Pay: €47.30 platba v Berlíně</div>
+        <div class="feed-sub">On-chain settlement za 5.2s</div>
+      </div>
+      <div class="feed-time">před 1m</div>
+    </div>
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(236,72,153,0.15);">🔵</div>
+      <div class="feed-text">
+        <div class="feed-title">Circles: 3 nové trust connections</div>
+        <div class="feed-sub">Berlin community hub · 847 členů</div>
+      </div>
+      <div class="feed-time">před 2m</div>
+    </div>
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(59,130,246,0.15);">€</div>
+      <div class="feed-text">
+        <div class="feed-title">EURe: SEPA → on-chain mint €25,000</div>
+        <div class="feed-sub">Monerium IBAN · zpracováno za 14s</div>
+      </div>
+      <div class="feed-time">před 3m</div>
+    </div>
+    <div class="feed-item">
+      <div class="feed-icon" style="background: rgba(16,185,129,0.15);">⛓️</div>
+      <div class="feed-text">
+        <div class="feed-title">Blok #42,847,312 potvrzen</div>
+        <div class="feed-sub">127 transakcí · 0.34s propagace</div>
+      </div>
+      <div class="feed-time">před 5s</div>
+    </div>
+  </div>
+</section>
+
+<!-- ECOSYSTEM MAP -->
+<section id="ecosystem">
+  <div class="section-header">
+    <span class="section-tag" style="background: rgba(139,92,246,0.12); color: var(--gno-purple);">Ekosystém</span>
+    <h2>Celý Gnosis svět</h2>
+    <p>Infrastruktura, tooling, DeFi — vše propojené, vše funkční.</p>
+  </div>
+
+  <div class="eco-map fade-in">
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(16,185,129,0.15);">🏛️</div>
+        <h4>GnosisDAO</h4>
+      </div>
+      <p>Governance celého ekosystému. Snapshot hlasování, on-chain exekuce přes Safe.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(139,92,246,0.15);">🧩</div>
+        <h4>Zodiac</h4>
+      </div>
+      <p>Modulární DAO tooling. Roles, Exit, Reality — composable governance moduly.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(59,130,246,0.15);">🔮</div>
+        <h4>Conditional Tokens</h4>
+      </div>
+      <p>Predikční trhy. Framework pro tokeny podmíněné výsledky událostí.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(245,158,11,0.15);">🏦</div>
+        <h4>Karpatkey</h4>
+      </div>
+      <p>DAO treasury management. Spravuje finance pro GnosisDAO, ENS, Balancer a další.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(236,72,153,0.15);">🛡️</div>
+        <h4>Shutter</h4>
+      </div>
+      <p>Encrypted mempool pro Gnosis Chain. Threshold šifrování proti MEV a frontrunning.</p>
+      <span class="eco-status live">● Živě na Gnosis</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(34,197,94,0.15);">🌿</div>
+        <h4>Agve</h4>
+      </div>
+      <p>Lending/borrowing protokol nativní pro Gnosis Chain. Aave fork optimalizovaný pro GC.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(14,165,233,0.15);">💧</div>
+        <h4>Symmetric</h4>
+      </div>
+      <p>AMM na Gnosis Chain. Balancer fork s weighted pools, boosted pools a custom AMM.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(249,115,22,0.15);">📡</div>
+        <h4>DAppNode</h4>
+      </div>
+      <p>Spusť vlastní Gnosis validátor doma. Plug-and-play hardware node. Skutečná decentralizace.</p>
+      <span class="eco-status live">● Aktivní</span>
+    </div>
+    <div class="eco-card">
+      <div class="eco-top">
+        <div class="eco-icon" style="background: rgba(168,85,247,0.15);">🔗</div>
+        <h4>Gnosis Chiado</h4>
+      </div>
+      <p>Testnet pro Gnosis Chain. Plně funkční PoS testnet pro developery a testování.</p>
+      <span class="eco-status live">● Testnet</span>
+    </div>
+  </div>
+</section>
+
+<!-- PHILOSOPHY -->
+<section id="philosophy" class="philosophy">
+  <div class="section-header">
+    <span class="section-tag" style="background: rgba(16,185,129,0.12); color: var(--gno-emerald);">Filozofie</span>
+    <h2>Proč Gnosis?</h2>
+    <p>Uprostřed krypto světa plného spekulací existuje místo, kde se staví skutečné věci.</p>
+  </div>
+
+  <div class="manifesto fade-in">
+    <blockquote>
+      "Gnosis nestaví produkty pro příští bull run. Staví infrastrukturu,
+      která bude fungovat za 10 let. Každý produkt řeší reálný problém —
+      platby, správa financí, identita, governance. Žádný hype. Fungující tech."
+    </blockquote>
+  </div>
+
+  <div class="manifesto-points fade-in">
+    <div class="manifesto-point">
+      <h4>🔧 Real utility, ne spekulace</h4>
+      <p>
+        Gnosis Pay funguje v obchodech. Safe spravuje $100B+. CoW chrání před MEV.
+        Circles dává lidem UBI. Tohle nejsou whitepaper sliby — tohle běží v produkci.
+      </p>
+    </div>
+    <div class="manifesto-point">
+      <h4>🏗️ Infrastruktura na dekády</h4>
+      <p>
+        Od 2015 Gnosis konzistentně staví. Safe (2018), Gnosis Chain (2020), CoW (2021),
+        Pay (2023), Circles V2 (2024). Žádné pivoty za trendy — dlouhodobá vize.
+      </p>
+    </div>
+    <div class="manifesto-point">
+      <h4>🌍 Komunita, ne korporace</h4>
+      <p>
+        200K+ validátorů, GnosisDAO governance, community grants.
+        Gnosis Chain je decentralizovanější než většina L1. Vlastněno komunitou.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="nav-logo" style="font-size:1.2rem;">
+        <div class="owl" style="width:30px;height:30px;font-size:1rem;">🦉</div>
+        <span>Gno<span style="color: var(--gno-emerald)">Hub</span></span>
+      </div>
+      <p>
+        Celý Gnosis ekosystém na jednom místě. Jeden účet, všechny produkty,
+        žádný bullshit. Stavíme budoucnost financí — transparentně a on-chain.
+      </p>
+    </div>
+    <div class="footer-col">
+      <h5>Produkty</h5>
+      <a href="#">Safe{Wallet}</a>
+      <a href="#">CoW Swap</a>
+      <a href="#">Gnosis Pay</a>
+      <a href="#">Circles</a>
+      <a href="#">EURe</a>
+      <a href="#">GNO Staking</a>
+    </div>
+    <div class="footer-col">
+      <h5>Ekosystém</h5>
+      <a href="#">Gnosis Chain</a>
+      <a href="#">GnosisDAO</a>
+      <a href="#">Zodiac</a>
+      <a href="#">Hashi Bridge</a>
+      <a href="#">DAppNode</a>
+      <a href="#">Chiado Testnet</a>
+    </div>
+    <div class="footer-col">
+      <h5>Zdroje</h5>
+      <a href="#">Dokumentace</a>
+      <a href="#">GitHub</a>
+      <a href="#">Governance Forum</a>
+      <a href="#">Block Explorer</a>
+      <a href="#">Brand Assets</a>
+      <a href="#">Kontakt</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 GnoHub · Komunitní portál Gnosis ekosystému</span>
+    <div style="display:flex; gap: 16px;">
+      <a href="#" style="color: var(--gno-text-muted); text-decoration: none;">Twitter</a>
+      <a href="#" style="color: var(--gno-text-muted); text-decoration: none;">Discord</a>
+      <a href="#" style="color: var(--gno-text-muted); text-decoration: none;">GitHub</a>
+      <a href="#" style="color: var(--gno-text-muted); text-decoration: none;">Forum</a>
+    </div>
+  </div>
+</footer>
+
+<!-- REGISTRATION MODAL -->
+<div class="modal-overlay" id="modal-register">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('register')">✕</button>
+    <h3>Vstup do Gnosis světa</h3>
+    <p>Jedna registrace — Safe peněženka, CoW Swap, Gnosis Pay a vše další je tvoje.</p>
+
+    <div class="wallet-options">
+      <div class="wallet-option" onclick="connectWallet('metamask')">
+        <div class="wo-icon" style="background: #f6851b; border-radius: 6px;">🦊</div>
+        MetaMask
+      </div>
+      <div class="wallet-option" onclick="connectWallet('walletconnect')">
+        <div class="wo-icon" style="background: #3b99fc; border-radius: 6px;">🔗</div>
+        WalletConnect
+      </div>
+      <div class="wallet-option" onclick="connectWallet('safe')">
+        <div class="wo-icon" style="background: var(--gno-emerald); border-radius: 6px;">🔐</div>
+        Existující Safe
+      </div>
+    </div>
+
+    <div class="divider">nebo s emailem</div>
+
+    <div class="input-group">
+      <label>Email</label>
+      <input type="email" placeholder="tvuj@email.cz" id="reg-email">
+    </div>
+    <button class="btn btn-primary" style="width: 100%;" onclick="registerEmail()">
+      Vytvořit GnoHub účet
+    </button>
+    <div style="text-align: center; margin-top: 14px; font-size: 0.78rem; color: var(--gno-text-muted);">
+      Automaticky ti vytvoříme Safe peněženku na Gnosis Chain
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('login')">✕</button>
+    <h3>Přihlásit se</h3>
+    <p>Připoj peněženku nebo se přihlas emailem.</p>
+
+    <div class="wallet-options">
+      <div class="wallet-option" onclick="connectWallet('metamask')">
+        <div class="wo-icon" style="background: #f6851b; border-radius: 6px;">🦊</div>
+        MetaMask
+      </div>
+      <div class="wallet-option" onclick="connectWallet('walletconnect')">
+        <div class="wo-icon" style="background: #3b99fc; border-radius: 6px;">🔗</div>
+        WalletConnect
+      </div>
+    </div>
+
+    <div class="divider">nebo</div>
+
+    <div class="input-group">
+      <label>Email</label>
+      <input type="email" placeholder="tvuj@email.cz">
+    </div>
+    <button class="btn btn-primary" style="width: 100%;">Přihlásit se</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-text">Akce provedena</span>
+</div>
+
+<script>
+function openModal(type) {
+  document.getElementById('modal-' + type).classList.add('show');
+}
+
+function closeModal(type) {
+  document.getElementById('modal-' + type).classList.remove('show');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('show');
+  });
+});
+
+function showToast(icon, text) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-text').textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function createSafe() {
+  const name = document.getElementById('safe-name').value || 'Můj Safe';
+  const chain = document.getElementById('safe-chain').value;
+  showToast('🔐', `Safe "${name}" se vytváří na ${chain}...`);
+}
+
+function swapTokens() {
+  const fromEl = document.getElementById('token-from');
+  const toEl = document.getElementById('token-to');
+  const tmp = fromEl.textContent;
+  fromEl.textContent = toEl.textContent;
+  toEl.textContent = tmp;
+}
+
+function executeSwap() {
+  const amount = document.getElementById('swap-amount-in').value;
+  const from = document.getElementById('token-from').textContent;
+  const to = document.getElementById('token-to').textContent;
+  showToast('🐄', `CoW Swap: ${amount} ${from} → ${to} odesláno do batch aukce`);
+}
+
+function connectWallet(type) {
+  const names = { metamask: 'MetaMask', walletconnect: 'WalletConnect', safe: 'Safe' };
+  showToast('🔗', `Připojování přes ${names[type]}...`);
+  closeModal('register');
+  closeModal('login');
+}
+
+function registerEmail() {
+  const email = document.getElementById('reg-email').value;
+  if (email) {
+    showToast('🦉', `GnoHub účet se vytváří pro ${email}...`);
+    closeModal('register');
+  }
+}
+
+function switchFeed(btn, type) {
+  document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  showToast('📡', `Filtr: ${type === 'all' ? 'Všechna aktivita' : type.toUpperCase()}`);
+}
+
+function scrollTo(selector) {
+  document.querySelector(selector).scrollIntoView({ behavior: 'smooth' });
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// Simulated live counter
+function animateCounter() {
+  const block = document.querySelector('.hero-badge');
+  if (!block) return;
+  let num = 42847291;
+  setInterval(() => {
+    num += Math.floor(Math.random() * 2);
+    const text = block.innerHTML;
+    block.innerHTML = text.replace(/#[\d,]+/, '#' + num.toLocaleString('en-US'));
+  }, 5000);
+}
+animateCounter();
+
+// Simulated feed updates
+const feedActions = [
+  { icon: '🔐', bg: 'rgba(16,185,129,0.15)', title: 'Safe transakce potvrzena (2/3 signers)', sub: '0x4b2c...8f91 · 0.5 ETH → DeFi vault' },
+  { icon: '🐄', bg: 'rgba(139,92,246,0.15)', title: 'CoW Swap: 10,000 USDC → 9,847 EURe', sub: 'Batch #847291 · Surplus: +€3.20' },
+  { icon: '💳', bg: 'rgba(245,158,11,0.15)', title: 'Gnosis Pay: €12.50 platba v Praze', sub: 'Kavárna · settlement 4.8s' },
+  { icon: '🔵', bg: 'rgba(236,72,153,0.15)', title: 'Circles: nový trust connection', sub: 'Prague community · 124 členů' },
+  { icon: '⛓️', bg: 'rgba(16,185,129,0.15)', title: 'Nový validátor registrován', sub: 'DAppNode home setup · 1 GNO stake' },
+  { icon: '€', bg: 'rgba(59,130,246,0.15)', title: 'EURe: €5,000 mint z SEPA', sub: 'Monerium IBAN zpracování 8s' },
+];
+
+setInterval(() => {
+  const feed = document.querySelector('.activity-feed');
+  const items = feed.querySelectorAll('.feed-item');
+  if (items.length > 8) items[items.length - 1].remove();
+
+  const action = feedActions[Math.floor(Math.random() * feedActions.length)];
+  const newItem = document.createElement('div');
+  newItem.className = 'feed-item';
+  newItem.style.opacity = '0';
+  newItem.style.transform = 'translateY(-10px)';
+  newItem.innerHTML = `
+    <div class="feed-icon" style="background: ${action.bg};">${action.icon}</div>
+    <div class="feed-text">
+      <div class="feed-title">${action.title}</div>
+      <div class="feed-sub">${action.sub}</div>
+    </div>
+    <div class="feed-time">právě teď</div>
+  `;
+
+  const firstItem = feed.querySelector('.feed-item');
+  if (firstItem) {
+    firstItem.parentNode.insertBefore(newItem, firstItem);
+  }
+
+  requestAnimationFrame(() => {
+    newItem.style.transition = 'all 0.4s ease';
+    newItem.style.opacity = '1';
+    newItem.style.transform = 'translateY(0)';
+  });
+
+  items.forEach(item => {
+    const time = item.querySelector('.feed-time');
+    if (time && time.textContent === 'právě teď') {
+      time.textContent = 'před ' + (Math.floor(Math.random() * 30) + 5) + 's';
+    }
+  });
+}, 6000);
+</script>
+
+</body>
+</html>
