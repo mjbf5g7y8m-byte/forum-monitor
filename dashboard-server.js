@@ -194,6 +194,44 @@ app.get('/', (req, res) => {
       </div>
     </div>`;
 
+  // ============ SECTION: AI Overview ============
+  const summaryEntries = Object.entries(summaries).filter(([id, s]) => s?.text && s.text.length > 10);
+  let aiOverviewHtml = '';
+  if (summaryEntries.length > 0) {
+    aiOverviewHtml = `
+    <div class="section-card open" data-section="ai-overview">
+      <div class="section-summary ai-overview-header" onclick="toggleSection('ai-overview')">
+        <div class="section-icon">🤖</div>
+        <div class="section-info">
+          <div class="section-title">AI Overview <span class="badge" style="background:var(--p);color:#fff">${summaryEntries.length} fór</span></div>
+          <div class="section-stats">
+            <span class="stat preview">${escapeHtml(summaryEntries[0][1].text?.substring(0, 60))}...</span>
+          </div>
+        </div>
+        <div class="section-right"><span class="expand-icon">▼</span></div>
+      </div>
+      <div class="section-details">
+        <div class="ai-overview-grid">
+          ${summaryEntries.map(([id, summary]) => {
+            const cfg = FORUMS[id];
+            if (!cfg) return '';
+            const price = prices[cfg.coingecko];
+            const change = price?.usd_24h_change || 0;
+            return `
+            <div class="ai-overview-card" style="--accent:${cfg.color}">
+              <div class="ai-overview-card-header">
+                <span>${cfg.icon} ${cfg.name}</span>
+                <span class="forum-price ${changeClass(change)}">${formatChange(change)}</span>
+              </div>
+              <div class="ai-overview-text">${escapeHtml(summary.text)}</div>
+              <div class="ai-overview-meta">${summary.topics || 0} topics | ${timeAgo(summary.generated)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
   // ============ SECTION: M2 vs S&P 500 ============
   let m2Html = '';
   if (m2sp500.m2?.length > 1 && m2sp500.sp500tr?.length > 1) {
@@ -660,6 +698,14 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .forum-price.up{color:var(--g)}
 .forum-price.down{color:var(--r)}
 .forum-votes{font-size:11px;color:var(--b);margin-bottom:6px}
+/* AI Overview */
+.ai-overview-header{background:linear-gradient(135deg,rgba(168,85,247,0.1),transparent)}
+.ai-overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:12px}
+.ai-overview-card{background:#0a0a0a;border-radius:10px;padding:14px;border-left:3px solid var(--accent,var(--p))}
+.ai-overview-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:600;font-size:13px}
+.ai-overview-text{font-size:12px;color:var(--t);line-height:1.7;margin-bottom:8px}
+.ai-overview-meta{font-size:10px;color:var(--t3)}
+
 .ai-summary{font-size:12px;color:var(--t);line-height:1.6;margin-bottom:10px;padding:10px 12px;background:rgba(168,85,247,0.08);border-left:3px solid var(--p);border-radius:0 8px 8px 0}
 .ai-label{font-size:10px;font-weight:700;color:var(--p);text-transform:uppercase;margin-right:4px}
 .forum-topics{display:flex;flex-direction:column;gap:4px}
@@ -748,6 +794,7 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
   
   <div id="content" class="view-compact">
     ${marketHtml}
+    ${aiOverviewHtml}
     <div class="dashboard-grid">
       <div class="col-left">
         ${forumsHtml}
